@@ -1,0 +1,6 @@
+.cargo/
+.idea/
+target/
+src/main.rs
+**/scratch.*
+**/scratch*.*

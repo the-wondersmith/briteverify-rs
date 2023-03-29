@@ -1,0 +1,81 @@
+[package]
+
+name = "briteverify-rs"
+version = "0.0.1"  # x-release-please-version
+description = "Rust client library for the BriteVerify API Suite"
+license = "AGPL-3.0-or-later"
+edition = "2021"
+authors = ["Mark S. <the@wondersmith.dev>"]
+
+readme = "README.md"
+homepage = "https://github.com/the-wondersmith/briteverify-rs"
+repository = "https://github.com/the-wondersmith/briteverify-rs"
+documentation = "https://github.com/the-wondersmith/briteverify-rs"
+
+keywords = ["briteverify", "client", "reqwest", "verification"]
+categories = ["web-programming::http-client", "api-bindings", "asynchronous", "email"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[profile.dev]
+debug = 2
+opt-level = 0
+incremental = true
+codegen-units = 512
+
+[profile.release]
+lto = true  # Enable Link Time Optimization to remove dead code reduce binary size
+debug = 0
+strip = true  # Automatically strip symbols from the binary.
+opt-level = "z"  # Optimize for size.
+panic = "abort"  # Don't include the rustc's unwinding code in release builds
+codegen-units = 1  # Allow for maximum size reduction optimizations
+incremental = true
+
+[[example]]
+name = "account-balance"
+crate-type = ["bin"]
+
+[[example]]
+name = "bulk-verification"
+crate-type = ["bin"]
+
+[[example]]
+name = "single-verification"
+crate-type = ["bin"]
+
+[dependencies]
+
+http = "^0.2"
+anyhow = "^1"
+futures = "^0.3"
+tracing = "^0.1"
+thiserror = "^1"
+serde_json = "^1"
+itertools = "^0.10"
+futures-util = "^0.3"
+strum = { version = "^0.24", optional = true }
+once_cell = { version = "^1.17", optional = true }
+strum_macros = { version = "^0.24", optional = true }
+tracing-subscriber = { version = "^0.3", features = ["env-filter"] }
+warlocks-cauldron = { version = "^0.26", optional = true, features = ["en"] }
+uuid = { version = "^1.3", optional = true, features = ["v4", "fast-rng", "macro-diagnostics"] }
+serde = { version = "^1", features = ["rc", "std", "alloc", "derive", "serde_derive"]}
+chrono = { version = "^0.4", default-features = false, features = ["std", "alloc", "clock", "serde"] }
+reqwest = { version = "^0.11", default-features = false, features = ["gzip", "json", "brotli", "stream", "cookies", "multipart", "rustls-tls", "rustls-tls-native-roots"] }
+
+[dev-dependencies]
+
+serde_test = "^1"
+wiremock = "^0.5"
+pretty_assertions = "^1.3"
+strum = { version = "^0.24", optional = false }
+tokio = { version = "^1.25", features = ["full"] }
+once_cell = { version = "^1.17", optional = false }
+strum_macros = { version = "^0.24", optional = false }
+warlocks-cauldron = { version = "^0.26", optional = false, features = ["en"] }
+uuid = { version = "^1.3", optional = false, features = ["v4", "fast-rng", "macro-diagnostics"] }
+
+[features]
+
+examples = ["uuid", "strum", "once_cell", "strum_macros", "warlocks-cauldron"]
