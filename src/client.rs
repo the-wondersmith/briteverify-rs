@@ -6,18 +6,162 @@ use std::{env, ops::Deref, time::Duration};
 // Third-Party Imports
 use anyhow::{Context, Result};
 use reqwest;
-use reqwest::StatusCode;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use reqwest::{
+    header::{HeaderMap, HeaderValue, InvalidHeaderValue, AUTHORIZATION},
+    StatusCode,
+};
+use tracing_subscriber::{
+    fmt::layer as tracing_layer, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter,
+};
 
 // Crate Imports
-use crate::types;
+use crate::{errors, types};
 
 // <editor-fold desc="// Constants ...">
 
 static V1_API_BASE_URL: &'static str = "https://bpi.briteverify.com/api/v1";
 static V3_API_BASE_URL: &'static str = "https://bulk-api.briteverify.com/api/v3";
+static DEFAULT_LOG_FILTER: &'static str = "briteverify_rs=debug,reqwest=info";
 
 // </editor-fold desc="// Constants ...">
+
+// <editor-fold desc="// ClientBuilder ...">
+
+/// Helper for incrementally building a [`BriteVerifyClient`](BriteVerifyClient)
+/// instance with custom configuration.
+///
+/// ## Usage
+/// ```no_run
+/// # use std::time::Duration;
+/// # use briteverify_rs::{BriteVerifyClient, BriteVerifyClientBuilder};
+/// #
+/// # #[tokio::main]
+/// # async fn doc() -> anyhow::Result<()> {
+/// let builder: BriteVerifyClientBuilder = BriteVerifyClient::builder();
+/// let client: BriteVerifyClient = builder
+///     .cookie_store(true)                         // reqwest::ClientBuilder::cookie_store
+///     .api_key("YOUR API KEY")                    // BriteVerifyClientBuilder::api_key
+///     .timeout(Duration::from_secs(360))          // reqwest::ClientBuilder::timeout
+///     .connect_timeout(Duration::from_secs(360))  // reqwest::ClientBuilder::connect_timeout
+///     .build()?;
+/// # Ok(())
+/// # }
+/// ```
+#[derive(Debug, Default)]
+pub struct BriteVerifyClientBuilder {
+    error: Option<InvalidHeaderValue>,
+    api_key: Option<HeaderValue>,
+    builder: reqwest::ClientBuilder,
+}
+
+impl Deref for BriteVerifyClientBuilder {
+    type Target = reqwest::ClientBuilder;
+
+    fn deref(&self) -> &Self::Target {
+        &self.builder
+    }
+}
+
+impl From<reqwest::ClientBuilder> for BriteVerifyClientBuilder {
+    fn from(builder: reqwest::ClientBuilder) -> Self {
+        let build_repr = format!("{:?}", builder);
+
+        let mut instance = Self {
+            builder,
+            ..Self::default()
+        };
+
+        if build_repr.contains("\"authorization\": Sensitive")
+            || build_repr.contains("\"authorization\": \"ApiKey:")
+        {
+            instance.api_key = Some(HeaderValue::from_static("IGNORE ME"));
+        }
+
+        instance
+    }
+}
+
+impl BriteVerifyClientBuilder {
+    /// Create a new [`BriteVerifyClientBuilder`][BriteVerifyClientBuilder] instance
+    pub fn new() -> Self {
+        Self {
+            error: None,
+            api_key: None,
+            builder: reqwest::ClientBuilder::new(),
+        }
+    }
+
+    /// Build a `BriteVerifyClient` that uses the customized configuration.
+    pub fn build(mut self) -> Result<BriteVerifyClient, errors::BriteVerifyClientError> {
+        if let Some(error) = self.error {
+            return Err(error.into());
+        }
+
+        match self.api_key {
+            None => Err(errors::BriteVerifyClientError::MissingApiKey),
+            Some(key) => {
+                let logging_conf = env::var("LOG_LEVELS").unwrap_or(DEFAULT_LOG_FILTER.to_string());
+
+                tracing_subscriber::registry()
+                    .with(EnvFilter::new(logging_conf))
+                    .with(tracing_layer())
+                    .init();
+
+                if key.is_sensitive() {
+                    let headers = HeaderMap::from_iter([(AUTHORIZATION, key)].into_iter());
+                    self.builder = self.builder.default_headers(headers);
+                }
+
+                Ok(BriteVerifyClient(
+                    self.builder
+                        .build()
+                        .context("Could not create a usable `reqwest` client")?,
+                ))
+            }
+        }
+    }
+
+    /// Set the API key to use for requests to the BriteVerify API
+    /// [[ref](https://docs.briteverify.com/#intro:~:text=API%20Suite%20Documentation-,Authorization,-To%20get%20started)]
+    pub fn api_key<ApiKey: ToString>(mut self, api_key: ApiKey) -> Self {
+        let api_key: String = format!("ApiKey: {}", api_key.to_string());
+
+        match HeaderValue::from_str(&api_key) {
+            Ok(mut header) => {
+                header.set_sensitive(true);
+                self.api_key = Some(header);
+            }
+            Err(error) => {
+                self.error = Some(error.into());
+            }
+        }
+
+        self
+    }
+
+    // TODO(the-wondersmith): Add wrapper methods for pertinent reqwest::ClientBuilder methods
+
+    /// Enables a request timeout.
+    ///
+    /// The timeout is applied from when the request starts connecting until the
+    /// response body has finished.
+    ///
+    /// Default is no timeout.
+    pub fn timeout(mut self, timeout: Duration) -> Self {
+        self.builder = self.builder.timeout(timeout);
+        self
+    }
+
+    /// Set a timeout for only the connect phase of a `Client`.
+    ///
+    /// Default is `None`.
+    pub fn connect_timeout(mut self, timeout: Duration) -> Self {
+        self.builder = self.builder.connect_timeout(timeout);
+        self
+    }
+}
+
+// </editor-fold desc="// ClientBuilder ...">
 
 // <editor-fold desc="// Client ...">
 
@@ -33,35 +177,37 @@ impl Deref for BriteVerifyClient {
     }
 }
 
+impl TryFrom<reqwest::Client> for BriteVerifyClient {
+    type Error = errors::BriteVerifyClientError;
+
+    fn try_from(client: reqwest::Client) -> Result<Self, Self::Error> {
+        let client_repr = format!("{:?}", &client);
+
+        if client_repr.contains("\"authorization\": Sensitive")
+            || client_repr.contains("\"authorization\": \"ApiKey:")
+        {
+            Ok(Self(client))
+        } else {
+            Err(errors::BriteVerifyClientError::MissingApiKey)
+        }
+    }
+}
+
 impl BriteVerifyClient {
     /// Create a new [`BriteVerifyClient`][BriteVerifyClient] instance
-    pub fn new<ApiKey: ToString>(api_key: ApiKey) -> Result<Self> {
-        tracing_subscriber::registry()
-            .with(tracing_subscriber::EnvFilter::new(
-                env::var("LOG_LEVELS")
-                    .unwrap_or_else(|_| "briteverify_rs=debug,reqwest=info".to_string()),
-            ))
-            .with(tracing_subscriber::fmt::layer())
-            .init();
-
-        let api_key: String = format!("ApiKey: {}", api_key.to_string());
-
-        let mut auth_header = reqwest::header::HeaderValue::from_str(&api_key)
-            .context("Could not create a valid header value from the supplied API key")?;
-        auth_header.set_sensitive(true);
-
-        let mut headers = reqwest::header::HeaderMap::new();
-        headers.insert("Authorization", auth_header);
-
-        let client = reqwest::Client::builder()
-            .default_headers(headers)
-            .cookie_store(true)
+    pub fn new<ApiKey: ToString>(api_key: ApiKey) -> Result<Self, errors::BriteVerifyClientError> {
+        Self::builder()
+            .api_key(api_key)
             .timeout(Duration::from_secs(360))
             .connect_timeout(Duration::from_secs(360))
             .build()
-            .context("Could not create a usable `reqwest` client")?;
+    }
 
-        Ok(Self(client))
+    /// Create a new [builder][BriteVerifyClientBuilder] to incrementally
+    /// build a [`BriteVerifyClient`][BriteVerifyClient] with a customised
+    /// configuration
+    pub fn builder() -> BriteVerifyClientBuilder {
+        BriteVerifyClientBuilder::new()
     }
 
     // <editor-fold desc="// Real-Time Single Transaction Endpoints ... ">

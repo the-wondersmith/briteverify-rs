@@ -52,13 +52,11 @@
 //! ```
 //!
 pub mod client;
+pub mod errors;
 pub mod types;
 #[cfg(feature = "examples")]
 pub mod utils;
 #[cfg(not(feature = "examples"))]
 pub(crate) mod utils;
 
-pub use client::BriteVerifyClient;
-
-#[cfg(all(not(doc), feature = "examples"))]
-pub use crate::utils::{RandomizableEnum, RandomizableStruct};
+pub use client::{BriteVerifyClient, BriteVerifyClientBuilder};
