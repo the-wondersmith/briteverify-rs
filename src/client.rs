@@ -54,14 +54,6 @@ pub struct BriteVerifyClientBuilder {
     builder: reqwest::ClientBuilder,
 }
 
-impl Deref for BriteVerifyClientBuilder {
-    type Target = reqwest::ClientBuilder;
-
-    fn deref(&self) -> &Self::Target {
-        &self.builder
-    }
-}
-
 impl From<reqwest::ClientBuilder> for BriteVerifyClientBuilder {
     fn from(builder: reqwest::ClientBuilder) -> Self {
         let build_repr = format!("{:?}", builder);
@@ -139,7 +131,7 @@ impl BriteVerifyClientBuilder {
         self
     }
 
-    // TODO(the-wondersmith): Add wrapper methods for pertinent reqwest::ClientBuilder methods
+    // Timeout options
 
     /// Enables a request timeout.
     ///
@@ -157,6 +149,459 @@ impl BriteVerifyClientBuilder {
     /// Default is `None`.
     pub fn connect_timeout(mut self, timeout: Duration) -> Self {
         self.builder = self.builder.connect_timeout(timeout);
+        self
+    }
+
+    /// Sets the `User-Agent` header to be used by the constructed client.
+    pub fn user_agent<V>(mut self, value: V) -> BriteVerifyClientBuilder
+    where
+        V: TryInto<HeaderValue>,
+        V::Error: Into<http::Error>,
+    {
+        self.builder = self.builder.user_agent(value);
+        self
+    }
+
+    /// Sets the default headers for every request.
+    pub fn default_headers(mut self, headers: HeaderMap) -> BriteVerifyClientBuilder {
+        self.builder = self.builder.default_headers(headers);
+        self
+    }
+
+    /// Enable auto gzip decompression by checking the `Content-Encoding` response header.
+    ///
+    /// If auto gzip decompression is turned on:
+    ///
+    /// - When sending a request and if the request's headers do not already contain
+    ///   an `Accept-Encoding` **and** `Range` values, the `Accept-Encoding` header is set to `gzip`.
+    ///   The request body is **not** automatically compressed.
+    /// - When receiving a response, if its headers contain a `Content-Encoding` value of
+    ///   `gzip`, both `Content-Encoding` and `Content-Length` are removed from the
+    ///   headers' set. The response body is automatically decompressed.
+    ///
+    /// By default this option is enabled.
+    pub fn gzip(mut self, enable: bool) -> BriteVerifyClientBuilder {
+        self.builder = self.builder.gzip(enable);
+        self
+    }
+
+    /// Enable auto brotli decompression by checking the `Content-Encoding` response header.
+    ///
+    /// If auto brotli decompression is turned on:
+    ///
+    /// - When sending a request and if the request's headers do not already contain
+    ///   an `Accept-Encoding` **and** `Range` values, the `Accept-Encoding` header is set to `br`.
+    ///   The request body is **not** automatically compressed.
+    /// - When receiving a response, if its headers contain a `Content-Encoding` value of
+    ///   `br`, both `Content-Encoding` and `Content-Length` are removed from the
+    ///   headers' set. The response body is automatically decompressed.
+    ///
+    /// By default this option is enabled.
+    pub fn brotli(mut self, enable: bool) -> BriteVerifyClientBuilder {
+        self.builder = self.builder.brotli(enable);
+        self
+    }
+
+    /// Disable auto response body gzip decompression.
+    ///
+    /// This method exists even if the optional `gzip` feature is not enabled.
+    /// This can be used to ensure a `Client` doesn't use gzip decompression
+    /// even if another dependency were to enable the optional `gzip` feature.
+    pub fn no_gzip(mut self) -> BriteVerifyClientBuilder {
+        self.builder = self.builder.no_gzip();
+        self
+    }
+
+    /// Disable auto response body brotli decompression.
+    ///
+    /// This method exists even if the optional `brotli` feature is not enabled.
+    /// This can be used to ensure a `Client` doesn't use brotli decompression
+    /// even if another dependency were to enable the optional `brotli` feature.
+    pub fn no_brotli(mut self) -> BriteVerifyClientBuilder {
+        self.builder = self.builder.no_brotli();
+        self
+    }
+
+    /// Disable auto response body deflate decompression.
+    ///
+    /// This method exists even if the optional `deflate` feature is not enabled.
+    /// This can be used to ensure a `Client` doesn't use deflate decompression
+    /// even if another dependency were to enable the optional `deflate` feature.
+    pub fn no_deflate(mut self) -> BriteVerifyClientBuilder {
+        self.builder = self.builder.no_deflate();
+        self
+    }
+
+    // Redirect options
+
+    /// Set a `RedirectPolicy` for this client.
+    ///
+    /// Default will follow redirects up to a maximum of 10.
+    pub fn redirect(mut self, policy: reqwest::redirect::Policy) -> BriteVerifyClientBuilder {
+        self.builder = self.builder.redirect(policy);
+        self
+    }
+
+    /// Enable or disable automatic setting of the `Referer` header.
+    ///
+    /// Default is `true`.
+    pub fn referer(mut self, enable: bool) -> BriteVerifyClientBuilder {
+        self.builder = self.builder.referer(enable);
+        self
+    }
+
+    // Proxy options
+
+    /// Add a `Proxy` to the list of proxies the `Client` will use.
+    ///
+    /// # Note
+    ///
+    /// Adding a proxy will disable the automatic usage of the "system" proxy.
+    pub fn proxy(mut self, proxy: reqwest::Proxy) -> BriteVerifyClientBuilder {
+        self.builder = self.builder.proxy(proxy);
+        self
+    }
+
+    /// Clear all `Proxies`, so `Client` will use no proxy anymore.
+    ///
+    /// # Note
+    /// To add a proxy exclusion list, use [reqwest::proxy::Proxy::no_proxy()]
+    /// on all desired proxies instead.
+    ///
+    /// This also disables the automatic usage of the "system" proxy.
+    pub fn no_proxy(mut self) -> BriteVerifyClientBuilder {
+        self.builder = self.builder.no_proxy();
+        self
+    }
+
+    /// Set whether connections should emit verbose logs.
+    ///
+    /// Enabling this option will emit [log][] messages at the `TRACE` level
+    /// for read and write operations on connections.
+    ///
+    /// [log]: https://crates.io/crates/log
+    pub fn connection_verbose(mut self, verbose: bool) -> BriteVerifyClientBuilder {
+        self.builder = self.builder.connection_verbose(verbose);
+        self
+    }
+
+    // HTTP options
+
+    /// Set an optional timeout for idle sockets being kept-alive.
+    ///
+    /// Pass `None` to disable timeout.
+    ///
+    /// Default is 90 seconds.
+    pub fn pool_idle_timeout<D: Into<Option<Duration>>>(
+        mut self,
+        value: D,
+    ) -> BriteVerifyClientBuilder {
+        self.builder = self.builder.pool_idle_timeout(value);
+        self
+    }
+
+    /// Sets the maximum idle connection per host allowed in the pool.
+    pub fn pool_max_idle_per_host(mut self, value: usize) -> BriteVerifyClientBuilder {
+        self.builder = self.builder.pool_max_idle_per_host(value);
+        self
+    }
+
+    /// Send headers as title case instead of lowercase.
+    pub fn http1_title_case_headers(mut self) -> BriteVerifyClientBuilder {
+        self.builder = self.builder.http1_title_case_headers();
+        self
+    }
+
+    /// Set whether HTTP/1 connections will accept obsolete line folding for
+    /// header values.
+    ///
+    /// Newline codepoints (`\r` and `\n`) will be transformed to spaces when
+    /// parsing.
+    pub fn http1_allow_obsolete_multiline_headers_in_responses(
+        mut self,
+        value: bool,
+    ) -> BriteVerifyClientBuilder {
+        self.builder = self
+            .builder
+            .http1_allow_obsolete_multiline_headers_in_responses(value);
+        self
+    }
+
+    /// Only use HTTP/1.
+    pub fn http1_only(mut self) -> BriteVerifyClientBuilder {
+        self.builder = self.builder.http1_only();
+        self
+    }
+
+    /// Allow HTTP/0.9 responses
+    pub fn http09_responses(mut self) -> BriteVerifyClientBuilder {
+        self.builder = self.builder.http09_responses();
+        self
+    }
+
+    /// Only use HTTP/2.
+    pub fn http2_prior_knowledge(mut self) -> BriteVerifyClientBuilder {
+        self.builder = self.builder.http2_prior_knowledge();
+        self
+    }
+
+    /// Sets the `SETTINGS_INITIAL_WINDOW_SIZE` option for HTTP2 stream-level flow control.
+    ///
+    /// Default is currently 65,535 but may change internally to optimize for common uses.
+    pub fn http2_initial_stream_window_size<WindowSize: Into<Option<u32>>>(
+        mut self,
+        value: WindowSize,
+    ) -> BriteVerifyClientBuilder {
+        self.builder = self.builder.http2_initial_stream_window_size(value);
+        self
+    }
+
+    /// Sets the max connection-level flow control for HTTP2
+    ///
+    /// Default is currently 65,535 but may change internally to optimize for common uses.
+    pub fn http2_initial_connection_window_size<WindowSize: Into<Option<u32>>>(
+        mut self,
+        value: WindowSize,
+    ) -> BriteVerifyClientBuilder {
+        self.builder = self.builder.http2_initial_connection_window_size(value);
+        self
+    }
+
+    /// Sets whether to use an adaptive flow control.
+    ///
+    /// Enabling this will override the limits set in `http2_initial_stream_window_size` and
+    /// `http2_initial_connection_window_size`.
+    pub fn http2_adaptive_window(mut self, enabled: bool) -> BriteVerifyClientBuilder {
+        self.builder = self.builder.http2_adaptive_window(enabled);
+        self
+    }
+
+    /// Sets the maximum frame size to use for HTTP2.
+    ///
+    /// Default is currently 16,384 but may change internally to optimize for common uses.
+    pub fn http2_max_frame_size<FrameSize: Into<Option<u32>>>(
+        mut self,
+        value: FrameSize,
+    ) -> BriteVerifyClientBuilder {
+        self.builder = self.builder.http2_max_frame_size(value);
+        self
+    }
+
+    /// Sets an interval for HTTP2 Ping frames should be sent to keep a connection alive.
+    ///
+    /// Pass `None` to disable HTTP2 keep-alive.
+    /// Default is currently disabled.
+    pub fn http2_keep_alive_interval<Interval: Into<Option<Duration>>>(
+        mut self,
+        interval: Interval,
+    ) -> BriteVerifyClientBuilder {
+        self.builder = self.builder.http2_keep_alive_interval(interval);
+        self
+    }
+
+    /// Sets a timeout for receiving an acknowledgement of the keep-alive ping.
+    ///
+    /// If the ping is not acknowledged within the timeout, the connection will be closed.
+    /// Does nothing if `http2_keep_alive_interval` is disabled.
+    /// Default is currently disabled.
+    pub fn http2_keep_alive_timeout(mut self, timeout: Duration) -> BriteVerifyClientBuilder {
+        self.builder = self.builder.http2_keep_alive_timeout(timeout);
+        self
+    }
+
+    /// Sets whether HTTP2 keep-alive should apply while the connection is idle.
+    ///
+    /// If disabled, keep-alive pings are only sent while there are open request/responses streams.
+    /// If enabled, pings are also sent when no streams are active.
+    /// Does nothing if `http2_keep_alive_interval` is disabled.
+    /// Default is `false`.
+    pub fn http2_keep_alive_while_idle(mut self, enabled: bool) -> BriteVerifyClientBuilder {
+        self.builder = self.builder.http2_keep_alive_while_idle(enabled);
+        self
+    }
+
+    // TCP options
+
+    /// Set whether sockets have `TCP_NODELAY` enabled.
+    ///
+    /// Default is `true`.
+    pub fn tcp_nodelay(mut self, enabled: bool) -> BriteVerifyClientBuilder {
+        self.builder = self.builder.tcp_nodelay(enabled);
+        self
+    }
+
+    /// Bind to a local IP Address.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use std::net::IpAddr;
+    /// let local_addr = IpAddr::from([12, 4, 1, 8]);
+    /// let client = briteverify_rs::BriteVerifyClient::builder()
+    ///     .api_key("YOUR API KEY")
+    ///     .local_address(local_addr)
+    ///     .build()?;
+    /// ```
+    pub fn local_address<T: Into<Option<std::net::IpAddr>>>(
+        mut self,
+        address: T,
+    ) -> BriteVerifyClientBuilder {
+        self.builder = self.builder.local_address(address);
+        self
+    }
+
+    /// Set that all sockets have `SO_KEEPALIVE` set with the supplied duration.
+    ///
+    /// If `None`, the option will not be set.
+    pub fn tcp_keepalive<D: Into<Option<Duration>>>(
+        mut self,
+        value: D,
+    ) -> BriteVerifyClientBuilder {
+        self.builder = self.builder.tcp_keepalive(value);
+        self
+    }
+
+    // TLS options
+
+    /// Add a custom root certificate.
+    ///
+    /// This can be used to connect to a server that has a self-signed
+    /// certificate for example.
+    pub fn add_root_certificate(mut self, cert: reqwest::Certificate) -> BriteVerifyClientBuilder {
+        self.builder = self.builder.add_root_certificate(cert);
+        self
+    }
+
+    /// Controls the use of built-in/preloaded certificates during certificate validation.
+    ///
+    /// Defaults to `true` -- built-in system certs will be used.
+    pub fn tls_built_in_root_certs(mut self, enabled: bool) -> BriteVerifyClientBuilder {
+        self.builder = self.builder.tls_built_in_root_certs(enabled);
+        self
+    }
+
+    /// Sets the identity to be used for client certificate authentication.
+    pub fn identity(mut self, value: reqwest::Identity) -> BriteVerifyClientBuilder {
+        self.builder = self.builder.identity(value);
+        self
+    }
+
+    /// Controls the use of certificate validation.
+    ///
+    /// Defaults to `false`.
+    ///
+    /// # Warning
+    ///
+    /// You should think very carefully before using this method. If
+    /// invalid certificates are trusted, *any* certificate for *any* site
+    /// will be trusted for use. This includes expired certificates. This
+    /// introduces significant vulnerabilities, and should only be used
+    /// as a last resort.
+    pub fn danger_accept_invalid_certs(mut self, enabled: bool) -> BriteVerifyClientBuilder {
+        self.builder = self.builder.danger_accept_invalid_certs(enabled);
+        self
+    }
+
+    /// Controls the use of TLS server name indication.
+    ///
+    /// Defaults to `true`.
+    pub fn tls_sni(mut self, enabled: bool) -> BriteVerifyClientBuilder {
+        self.builder = self.builder.tls_sni(enabled);
+        self
+    }
+
+    /// Set the minimum required TLS version for connections.
+    ///
+    /// By default the TLS backend's own default is used.
+    ///
+    /// # Errors
+    ///
+    /// A value of `tls::Version::TLS_1_3` will cause an error with the
+    /// `native-tls`/`default-tls` backend. This does not mean the version
+    /// isn't supported, just that it can't be set as a minimum due to
+    /// technical limitations.
+    pub fn min_tls_version(mut self, version: reqwest::tls::Version) -> BriteVerifyClientBuilder {
+        self.builder = self.builder.min_tls_version(version);
+        self
+    }
+
+    /// Set the maximum allowed TLS version for connections.
+    ///
+    /// By default there's no maximum.
+    ///
+    /// # Errors
+    ///
+    /// A value of `tls::Version::TLS_1_3` will cause an error with the
+    /// `native-tls`/`default-tls` backend. This does not mean the version
+    /// isn't supported, just that it can't be set as a maximum due to
+    /// technical limitations.
+    pub fn max_tls_version(mut self, version: reqwest::tls::Version) -> BriteVerifyClientBuilder {
+        self.builder = self.builder.max_tls_version(version);
+        self
+    }
+
+    /// Disables the trust-dns async resolver.
+    ///
+    /// This method exists even if the optional `trust-dns` feature is not enabled.
+    /// This can be used to ensure a `Client` doesn't use the trust-dns async resolver
+    /// even if another dependency were to enable the optional `trust-dns` feature.
+    pub fn no_trust_dns(mut self) -> BriteVerifyClientBuilder {
+        self.builder = self.builder.no_trust_dns();
+        self
+    }
+
+    /// Restrict the Client to be used with HTTPS only requests.
+    ///
+    /// Defaults to false.
+    pub fn https_only(mut self, enabled: bool) -> BriteVerifyClientBuilder {
+        self.builder = self.builder.https_only(enabled);
+        self
+    }
+
+    /// Override DNS resolution for specific domains to a particular IP address.
+    ///
+    /// Warning
+    ///
+    /// Since the DNS protocol has no notion of ports, if you wish to send
+    /// traffic to a particular port you must include this port in the URL
+    /// itself, any port in the overridden addr will be ignored and traffic sent
+    /// to the conventional port for the given scheme (e.g. 80 for http).
+    pub fn resolve(
+        mut self,
+        domain: &str,
+        address: std::net::SocketAddr,
+    ) -> BriteVerifyClientBuilder {
+        self.builder = self.builder.resolve(domain, address);
+        self
+    }
+
+    /// Override DNS resolution for specific domains to particular IP addresses.
+    ///
+    /// Warning
+    ///
+    /// Since the DNS protocol has no notion of ports, if you wish to send
+    /// traffic to a particular port you must include this port in the URL
+    /// itself, any port in the overridden addresses will be ignored and traffic sent
+    /// to the conventional port for the given scheme (e.g. 80 for http).
+    pub fn resolve_to_addrs(
+        mut self,
+        domain: &str,
+        addresses: &[std::net::SocketAddr],
+    ) -> BriteVerifyClientBuilder {
+        self.builder = self.builder.resolve_to_addrs(domain, addresses);
+        self
+    }
+
+    /// Override the DNS resolver implementation.
+    ///
+    /// Pass an `Arc` wrapping a trait object implementing `Resolve`.
+    /// Overrides for specific names passed to `resolve` and `resolve_to_addrs` will
+    /// still be applied on top of this resolver.
+    pub fn dns_resolver<R: reqwest::dns::Resolve + 'static>(
+        mut self,
+        resolver: std::sync::Arc<R>,
+    ) -> BriteVerifyClientBuilder {
+        self.builder = self.builder.dns_resolver(resolver);
         self
     }
 }
@@ -504,6 +949,11 @@ impl BriteVerifyClient {
         contacts: ContactCollection,
         auto_start: bool,
     ) -> Result<types::CreateListResponse> {
+        // TODO(the-wondersmith): Apply bulk "rate" limit to supplied contacts
+        //                        Bulk rate limits are:
+        //                          - 100k Emails per page
+        //                          - 1M Email addresses per job (or 20 pages of 50k)
+
         self._create_or_update_list(<Option<String>>::None, contacts, auto_start)
             .await
     }
@@ -521,6 +971,10 @@ impl BriteVerifyClient {
         contacts: ContactCollection,
         auto_start: bool,
     ) -> Result<types::UpdateListResponse> {
+        // TODO(the-wondersmith): Apply bulk "rate" limit to supplied contacts
+        //                        Bulk rate limits are:
+        //                          - 100k Emails per page
+        //                          - 1M Email addresses per job (or 20 pages of 50k)
         self._create_or_update_list(Some(list_id), contacts, auto_start)
             .await
     }
@@ -538,6 +992,11 @@ impl BriteVerifyClient {
         contacts: ContactCollection,
         directive: Directive,
     ) -> Result<types::CreateListResponse> {
+        // TODO(the-wondersmith): Apply bulk "rate" limit to supplied contacts
+        //                        Bulk rate limits are:
+        //                          - 100k Emails per page
+        //                          - 1M Email addresses per job (or 20 pages of 50k)
+
         let directive = directive.into();
 
         let request = types::BulkVerificationRequest::new(contacts, directive);
