@@ -41,7 +41,7 @@
 //! # use briteverify_rs::{BriteVerifyClient, types::AccountCreditBalance};
 //! #
 //! # #[tokio::main]
-//! # async fn check_account_balance() -> anyhow::Result<()> {
+//! # async fn doc() -> anyhow::Result<()> {
 //! let response: AccountCreditBalance = BriteVerifyClient::new("YOUR API KEY HERE")?
 //!     .get_account_balance()
 //!    .await?;
