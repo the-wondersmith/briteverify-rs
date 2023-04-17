@@ -22,3 +22,20 @@ pub enum BriteVerifyClientError {
     #[error(transparent)]
     Other(#[from] anyhow::Error),
 }
+
+/// Errors encountered when building a
+/// `BriteVerifyClient`-recognized request
+#[derive(Debug, Error)]
+pub enum BriteVerifyTypeError {
+    /// The value cannot be unambiguously
+    /// resolved to a known request type
+    #[error(
+        "Value cannot be resolved to a known \
+        BriteVerify API request type unambiguously: {:?}",
+        .0,
+    )]
+    AmbiguousTryFromValue(String),
+    /// A catch-all error for any other errors encountered
+    #[error(transparent)]
+    Other(#[from] anyhow::Error),
+}

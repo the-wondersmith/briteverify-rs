@@ -330,9 +330,45 @@ impl VerificationRequest {
     }
 }
 
+impl<Displayable: ToString> From<Displayable> for EmailVerificationRequest {
+    fn from(email: Displayable) -> Self {
+        Self {
+            email: email.to_string(),
+        }
+    }
+}
+
+impl<Displayable: ToString> From<Displayable> for PhoneNumberVerificationRequest {
+    fn from(phone: Displayable) -> Self {
+        Self {
+            phone: phone.to_string(),
+        }
+    }
+}
+
 impl From<FullVerificationRequest> for VerificationRequest {
     fn from(request: FullVerificationRequest) -> Self {
         Self::Full(request)
+    }
+}
+
+impl TryFrom<&'_ str> for VerificationRequest {
+    type Error = crate::errors::BriteVerifyTypeError;
+
+    fn try_from(value: &'_ str) -> Result<Self, Self::Error> {
+        if value.contains('@') {
+            return Ok(Self::Email(EmailVerificationRequest::from(value)));
+        }
+
+        const ADDR_CHARS: &str = "., \n";
+
+        if !value.chars().any(|ch| ADDR_CHARS.contains(ch)) {
+            return Ok(Self::Phone(PhoneNumberVerificationRequest::from(value)));
+        }
+
+        Err(crate::errors::BriteVerifyTypeError::AmbiguousTryFromValue(
+            value.to_string(),
+        ))
     }
 }
 
