@@ -10,7 +10,7 @@ authors = ["Mark S. <the@wondersmith.dev>"]
 readme = "README.md"
 homepage = "https://github.com/the-wondersmith/briteverify-rs"
 repository = "https://github.com/the-wondersmith/briteverify-rs"
-documentation = "https://docs.rs/crate/briteverify-rs/latest"
+documentation = "https://docs.rs/briteverify-rs/latest/briteverify_rs/"
 
 keywords = ["briteverify", "client", "reqwest", "verification"]
 categories = ["web-programming::http-client", "api-bindings", "asynchronous", "email"]
