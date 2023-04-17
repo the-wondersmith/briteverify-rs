@@ -1917,14 +1917,21 @@ impl BriteVerifyClient {
         //                          - 100k Emails per page
         //                          - 1M Email addresses per job (or 20 pages of 50k)
 
-        let (contacts, auto_start): (ContactCollection, bool) = if let Some(data) = contacts {
-            (data, auto_start)
-        } else {
-            (Vec::<types::VerificationRequest>::new(), false)
-        };
-
-        self._create_or_update_list(<Option<String>>::None, contacts, auto_start)
+        if let Some(data) = contacts {
+            self._create_or_update_list(
+                <Option<String>>::None, // no explicit list id
+                data,                   // supplied contacts
+                auto_start,             // untouched auto-start value
+            )
             .await
+        } else {
+            self._create_or_update_list(
+                <Option<String>>::None,                   // no explicit list id
+                Vec::<types::VerificationRequest>::new(), // no contacts
+                false, // without contacts, we can't auto-start no matter what
+            )
+            .await
+        }
     }
 
     /// Append records to the specified bulk verification list and (optionally)
