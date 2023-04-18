@@ -5,8 +5,9 @@ use std::{env, ops::Deref, time::Duration};
 
 // Third-Party Imports
 use anyhow::{Context, Result};
+use futures_timer::Delay;
 use reqwest::{
-    header::{HeaderMap, HeaderValue, InvalidHeaderValue, AUTHORIZATION},
+    header::{HeaderMap, HeaderValue, AUTHORIZATION},
     StatusCode,
 };
 use tracing_subscriber::{
@@ -45,10 +46,13 @@ static DEFAULT_LOG_FILTER: &'static str = "briteverify_rs=debug,reqwest=info";
 /// # Ok(())
 /// # }
 /// ```
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct BriteVerifyClientBuilder {
-    error: Option<InvalidHeaderValue>,
+    error: Option<errors::BriteVerifyClientError>,
     api_key: Option<HeaderValue>,
+    v1_base_url: Option<http::Uri>,
+    v3_base_url: Option<http::Uri>,
+    retry_enabled: bool,
     builder: reqwest::ClientBuilder,
 }
 
@@ -71,6 +75,19 @@ impl From<reqwest::ClientBuilder> for BriteVerifyClientBuilder {
     }
 }
 
+impl Default for BriteVerifyClientBuilder {
+    fn default() -> Self {
+        Self {
+            error: None,
+            api_key: None,
+            v1_base_url: None,
+            v3_base_url: None,
+            retry_enabled: false,
+            builder: reqwest::Client::builder(),
+        }
+    }
+}
+
 impl BriteVerifyClientBuilder {
     /// Create a new [`BriteVerifyClientBuilder`][BriteVerifyClientBuilder] instance
     ///
@@ -84,11 +101,7 @@ impl BriteVerifyClientBuilder {
     /// # }
     /// ```
     pub fn new() -> Self {
-        Self {
-            error: None,
-            api_key: None,
-            builder: reqwest::ClientBuilder::new(),
-        }
+        Self::default()
     }
 
     /// Build a custom configured [`BriteVerifyClient`](BriteVerifyClient) instance.
@@ -106,7 +119,7 @@ impl BriteVerifyClientBuilder {
     /// ```
     pub fn build(mut self) -> Result<BriteVerifyClient, errors::BriteVerifyClientError> {
         if let Some(error) = self.error {
-            return Err(error.into());
+            return Err(error);
         }
 
         match self.api_key {
@@ -124,11 +137,23 @@ impl BriteVerifyClientBuilder {
                     self.builder = self.builder.default_headers(headers);
                 }
 
-                Ok(BriteVerifyClient(
-                    self.builder
+                Ok(BriteVerifyClient {
+                    client: self
+                        .builder
                         .build()
                         .context("Could not create a usable `reqwest` client")?,
-                ))
+                    retry_enabled: self.retry_enabled,
+                    v1_base_url: if let Some(value) = self.v1_base_url {
+                        value.to_string().strip_suffix("/").unwrap().to_string()
+                    } else {
+                        V1_API_BASE_URL.to_string()
+                    },
+                    v3_base_url: if let Some(value) = self.v3_base_url {
+                        value.to_string().strip_suffix("/").unwrap().to_string()
+                    } else {
+                        V3_API_BASE_URL.to_string()
+                    },
+                })
             }
         }
     }
@@ -156,6 +181,93 @@ impl BriteVerifyClientBuilder {
             }
             Err(error) => {
                 self.api_key = None;
+                self.error = Some(error.into());
+            }
+        }
+
+        self
+    }
+
+    /// Enabled or disable automatic rate limit handling via retry.
+    ///
+    /// ___
+    /// **NOTE:** Automatic retry is `disabled` by default. It must be
+    /// explicitly enabled by calling `.retry_enabled(true)` on a
+    /// [`BriteVerifyClientBuilder`](BriteVerifyClientBuilder) instance.
+    /// ___
+    ///
+    /// #### Example
+    /// ```no_run
+    /// # use briteverify_rs::BriteVerifyClientBuilder;
+    /// #
+    /// # fn doc() -> anyhow::Result<()> {
+    /// let builder: BriteVerifyClientBuilder = BriteVerifyClientBuilder::new()
+    ///     .retry_enabled(true);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn retry_enabled(mut self, value: bool) -> Self {
+        self.retry_enabled = value;
+        self
+    }
+
+    /// Override the base URL for requests to the BriteVerify v1 API
+    /// [[ref](https://docs.briteverify.com/#79e00732-b734-4308-ac7f-820d62dde01f)]
+    ///
+    /// #### Example
+    /// ```no_run
+    /// # use briteverify_rs::BriteVerifyClientBuilder;
+    /// #
+    /// # fn doc() -> anyhow::Result<()> {
+    /// let builder: BriteVerifyClientBuilder = BriteVerifyClientBuilder::new()
+    ///     .v1_base_url("https://my-custom-domain.net/briteverify/v1");
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn v1_base_url<URL: TryInto<http::Uri, Error = http::uri::InvalidUri>>(
+        mut self,
+        url: URL,
+    ) -> Self {
+        let url = url.try_into();
+
+        match url {
+            Ok(value) => {
+                self.v1_base_url = Some(value);
+            }
+            Err(error) => {
+                self.v1_base_url = None;
+                self.error = Some(error.into());
+            }
+        }
+
+        self
+    }
+
+    /// Override the base URL for requests to the BriteVerify v3 API
+    /// [[ref](https://docs.briteverify.com/#382f454d-dad2-49c3-b320-c7d117fcc20a)]
+    ///
+    /// #### Example
+    /// ```no_run
+    /// # use briteverify_rs::BriteVerifyClientBuilder;
+    /// #
+    /// # fn doc() -> anyhow::Result<()> {
+    /// let builder: BriteVerifyClientBuilder = BriteVerifyClientBuilder::new()
+    ///     .v3_base_url("https://my-custom-domain.net/briteverify/v3");
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn v3_base_url<URL: TryInto<http::Uri, Error = http::uri::InvalidUri>>(
+        mut self,
+        url: URL,
+    ) -> Self {
+        let url = url.try_into();
+
+        match url {
+            Ok(value) => {
+                self.v3_base_url = Some(value);
+            }
+            Err(error) => {
+                self.v3_base_url = None;
                 self.error = Some(error.into());
             }
         }
@@ -1235,13 +1347,19 @@ impl BriteVerifyClientBuilder {
 /// # }
 /// ```
 #[derive(Debug)]
-pub struct BriteVerifyClient(reqwest::Client);
+#[allow(dead_code)]
+pub struct BriteVerifyClient {
+    client: reqwest::Client,
+    v1_base_url: String,
+    v3_base_url: String,
+    retry_enabled: bool,
+}
 
 impl Deref for BriteVerifyClient {
     type Target = reqwest::Client;
 
     fn deref(&self) -> &Self::Target {
-        &self.0
+        &self.client
     }
 }
 
@@ -1254,7 +1372,12 @@ impl TryFrom<reqwest::Client> for BriteVerifyClient {
         if client_repr.contains("\"authorization\": Sensitive")
             || client_repr.contains("\"authorization\": \"ApiKey:")
         {
-            Ok(Self(client))
+            Ok(Self {
+                client,
+                retry_enabled: true,
+                v1_base_url: V1_API_BASE_URL.to_string(),
+                v3_base_url: V3_API_BASE_URL.to_string(),
+            })
         } else {
             Err(errors::BriteVerifyClientError::MissingApiKey)
         }
@@ -1304,13 +1427,51 @@ impl BriteVerifyClient {
 
     // <editor-fold desc="// Internal Utility Methods ... ">
 
-    #[allow(dead_code, unused_variables)]
     /// [internal-implementation]
     /// Send the supplied request, automatically handling
     /// rate limit error responses by sleeping until the
     /// rate limit expires and re-sending the request
-    async fn _with_retry(request: reqwest::RequestBuilder) -> Result<reqwest::Response> {
-        todo!()
+    async fn _with_retry(
+        &self,
+        request: reqwest::RequestBuilder,
+    ) -> Result<reqwest::Response, errors::BriteVerifyClientError> {
+        let request = request.build()?;
+
+        if !self.retry_enabled {
+            match self.execute(request).await {
+                Ok(response) => Ok(response),
+                Err(error) => Err(errors::BriteVerifyClientError::Other(error.into())),
+            }
+        } else {
+            loop {
+                match request.try_clone() {
+                    None => break Err(errors::BriteVerifyClientError::UnclonableRequest),
+                    Some(req) => {
+                        let response = self.execute(req).await?;
+
+                        if response.status() != StatusCode::TOO_MANY_REQUESTS {
+                            break Ok(response);
+                        }
+
+                        let retry_after = 1 + response
+                            .headers()
+                            .get("retry-after")
+                            .and_then(|value| Some(value.to_str().unwrap_or("60")))
+                            .unwrap_or("60")
+                            .parse::<u64>()
+                            .unwrap_or(60);
+
+                        tracing::warn!(
+                            "Request to '{}' responded 429, waiting {} seconds before retry...",
+                            (&request).url(),
+                            &retry_after
+                        );
+
+                        Delay::new(Duration::from_secs(retry_after)).await;
+                    }
+                }
+            }
+        }
     }
 
     /// [internal-implementation]
@@ -1324,26 +1485,22 @@ impl BriteVerifyClient {
         city: Option<Displayable>,
         state: Option<Displayable>,
         zip: Option<Displayable>,
-    ) -> Result<types::VerificationResponse> {
+    ) -> Result<types::VerificationResponse, errors::BriteVerifyClientError> {
         let request = types::VerificationRequest::from_values(
             email, phone, address1, address2, city, state, zip,
         )?;
 
         let response = self
-            .0
-            .post(format!("{V1_API_BASE_URL}/fullverify"))
-            .json(&request)
-            .send()
+            ._with_retry(
+                self.post(format!("{}/fullverify", &self.v1_base_url))
+                    .json(&request),
+            )
             .await?;
 
-        match &response.status() {
-            &StatusCode::OK => Ok(response.json::<types::VerificationResponse>().await?),
-            _ => {
-                println!("{:#?}", &response);
-                let data = response.text().await?;
-                println!("Content: {data:#?}");
-                todo!("Add proper handling for non-200 responses")
-            }
+        if response.status() == StatusCode::OK {
+            Ok(response.json::<types::VerificationResponse>().await?)
+        } else {
+            Err(errors::BriteVerifyClientError::UnusableResponse(response))
         }
     }
 
@@ -1354,18 +1511,15 @@ impl BriteVerifyClient {
         &self,
         list_id: String,
         page_number: u64,
-    ) -> Result<types::BulkVerificationResponse> {
-        let response = self
-            .get(format!(
-                "{V3_API_BASE_URL}/lists/{list_id}/export/{page_number}"
-            ))
-            .send()
-            .await?;
-        match response.status() {
-            StatusCode::OK => Ok(response.json::<types::BulkVerificationResponse>().await?),
-            _ => {
-                todo!("Add proper handling for non-200 responses")
-            }
+    ) -> Result<types::BulkVerificationResponse, errors::BriteVerifyClientError> {
+        let page_url = format!("{}/lists/{list_id}/export/{page_number}", &self.v3_base_url);
+
+        let response = self._with_retry(self.get(page_url)).await?;
+
+        if response.status() == StatusCode::OK {
+            Ok(response.json::<types::BulkVerificationResponse>().await?)
+        } else {
+            Err(errors::BriteVerifyClientError::UnusableResponse(response))
         }
     }
 
@@ -1381,7 +1535,7 @@ impl BriteVerifyClient {
         list_id: Option<ListId>,
         contacts: ContactCollection,
         directive: Directive,
-    ) -> Result<types::CreateListResponse> {
+    ) -> Result<types::CreateListResponse, errors::BriteVerifyClientError> {
         // TODO(the-wondersmith): Apply bulk "rate" limit to supplied contacts
         //                        Bulk rate limits are:
         //                          - 100k Emails per page
@@ -1394,9 +1548,9 @@ impl BriteVerifyClient {
         let url: String = {
             if let Some(id) = list_id {
                 let list_id = id.to_string();
-                format!("{V3_API_BASE_URL}/lists/{list_id}")
+                format!("{}/lists/{list_id}", &self.v3_base_url,)
             } else {
-                format!("{V3_API_BASE_URL}/lists")
+                format!("{}/lists", &self.v3_base_url,)
             }
         };
 
@@ -1406,9 +1560,7 @@ impl BriteVerifyClient {
             StatusCode::OK | StatusCode::CREATED | StatusCode::BAD_REQUEST => {
                 Ok(response.json::<types::CreateListResponse>().await?)
             }
-            _ => {
-                todo!("Add proper handling for non-200 responses")
-            }
+            _ => Err(errors::BriteVerifyClientError::UnusableResponse(response)),
         }
     }
 
@@ -1471,20 +1623,17 @@ impl BriteVerifyClient {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn get_account_balance(&self) -> Result<types::AccountCreditBalance> {
+    pub async fn get_account_balance(
+        &self,
+    ) -> Result<types::AccountCreditBalance, errors::BriteVerifyClientError> {
         let response = self
-            .get(format!("{V3_API_BASE_URL}/accounts/credits"))
-            .send()
+            ._with_retry(self.get(format!("{}/accounts/credits", &self.v3_base_url)))
             .await?;
 
-        match response.status() {
-            StatusCode::OK => Ok(response.json::<types::AccountCreditBalance>().await?),
-            StatusCode::TOO_MANY_REQUESTS => {
-                todo!("Add automatic rate limit handling")
-            }
-            _ => {
-                todo!("Add proper handling for non-200 responses")
-            }
+        if response.status() == StatusCode::OK {
+            Ok(response.json::<types::AccountCreditBalance>().await?)
+        } else {
+            Err(errors::BriteVerifyClientError::UnusableResponse(response))
         }
     }
 
@@ -1520,7 +1669,7 @@ impl BriteVerifyClient {
         city: Displayable,
         state: Displayable,
         zip: Displayable,
-    ) -> Result<types::FullVerificationResponse> {
+    ) -> Result<types::FullVerificationResponse, errors::BriteVerifyClientError> {
         let response = self
             ._full_verify(
                 Some(email),
@@ -1535,9 +1684,9 @@ impl BriteVerifyClient {
 
         match response {
             types::VerificationResponse::Full(data) => Ok(data),
-            _ => {
-                anyhow::bail!("How did this even happen?")
-            }
+            _ => Err(errors::BriteVerifyClientError::Other(anyhow::Error::msg(
+                "How did this even happen?",
+            ))),
         }
     }
 
@@ -1559,16 +1708,16 @@ impl BriteVerifyClient {
     pub async fn verify_email<EmailAddress: ToString>(
         &self,
         email: EmailAddress,
-    ) -> Result<types::EmailVerificationResponse> {
+    ) -> Result<types::EmailVerificationResponse, errors::BriteVerifyClientError> {
         let response = self
             ._full_verify(Some(email), None, None, None, None, None, None)
             .await?;
 
         match response {
             types::VerificationResponse::Email(data) => Ok(data),
-            _ => {
-                anyhow::bail!("How did this even happen?")
-            }
+            _ => Err(errors::BriteVerifyClientError::Other(anyhow::Error::msg(
+                "How did this even happen?",
+            ))),
         }
     }
 
@@ -1590,16 +1739,16 @@ impl BriteVerifyClient {
     pub async fn verify_phone_number<PhoneNumber: ToString>(
         &self,
         phone: PhoneNumber,
-    ) -> Result<types::PhoneNumberVerificationResponse> {
+    ) -> Result<types::PhoneNumberVerificationResponse, errors::BriteVerifyClientError> {
         let response = self
             ._full_verify(None, Some(phone), None, None, None, None, None)
             .await?;
 
         match response {
             types::VerificationResponse::Phone(data) => Ok(data),
-            _ => {
-                anyhow::bail!("How did this even happen?")
-            }
+            _ => Err(errors::BriteVerifyClientError::Other(anyhow::Error::msg(
+                "How did this even happen?",
+            ))),
         }
     }
 
@@ -1631,7 +1780,7 @@ impl BriteVerifyClient {
         city: Displayable,
         state: Displayable,
         zip: Displayable,
-    ) -> Result<types::AddressVerificationResponse> {
+    ) -> Result<types::AddressVerificationResponse, errors::BriteVerifyClientError> {
         let response = self
             ._full_verify(
                 None,
@@ -1646,9 +1795,9 @@ impl BriteVerifyClient {
 
         match response {
             types::VerificationResponse::Address(data) => Ok(data),
-            _ => {
-                anyhow::bail!("How did this even happen?")
-            }
+            _ => Err(errors::BriteVerifyClientError::Other(anyhow::Error::msg(
+                "How did this even happen?",
+            ))),
         }
     }
 
@@ -1672,7 +1821,9 @@ impl BriteVerifyClient {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn get_lists(&self) -> Result<types::GetListStatesResponse> {
+    pub async fn get_lists(
+        &self,
+    ) -> Result<types::GetListStatesResponse, errors::BriteVerifyClientError> {
         self.get_filtered_lists(
             <Option<u32>>::None,
             <Option<chrono::NaiveDate>>::None,
@@ -1711,7 +1862,7 @@ impl BriteVerifyClient {
         page: Option<u32>,
         date: Option<Date>,
         state: Option<State>,
-    ) -> Result<types::GetListStatesResponse> {
+    ) -> Result<types::GetListStatesResponse, errors::BriteVerifyClientError> {
         let mut params: Vec<(&'header str, String)> = Vec::new();
 
         if let Some(page) = page {
@@ -1738,19 +1889,18 @@ impl BriteVerifyClient {
             }
         }
 
-        let mut request = self.get(format!("{V3_API_BASE_URL}/lists"));
+        let mut request = self.get(format!("{}/lists", &self.v3_base_url,));
 
         if !params.is_empty() {
             request = request.query(&params);
         }
 
-        let response = request.send().await?;
+        let response = self._with_retry(request).await?;
 
-        match response.status() {
-            StatusCode::OK => Ok(response.json::<types::GetListStatesResponse>().await?),
-            _ => {
-                todo!("Add proper handling for non-200 responses")
-            }
+        if response.status() == StatusCode::OK {
+            Ok(response.json::<types::GetListStatesResponse>().await?)
+        } else {
+            Err(errors::BriteVerifyClientError::UnusableResponse(response))
         }
     }
 
@@ -1784,7 +1934,7 @@ impl BriteVerifyClient {
     pub async fn get_lists_by_date<Date: chrono::Datelike>(
         &self,
         date: Date,
-    ) -> Result<types::GetListStatesResponse> {
+    ) -> Result<types::GetListStatesResponse, errors::BriteVerifyClientError> {
         self.get_filtered_lists(
             <Option<u32>>::None,
             Some(date),
@@ -1811,7 +1961,10 @@ impl BriteVerifyClient {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn get_lists_by_page(&self, page: u32) -> Result<types::GetListStatesResponse> {
+    pub async fn get_lists_by_page(
+        &self,
+        page: u32,
+    ) -> Result<types::GetListStatesResponse, errors::BriteVerifyClientError> {
         self.get_filtered_lists(
             Some(page),
             <Option<chrono::NaiveDate>>::None,
@@ -1843,7 +1996,7 @@ impl BriteVerifyClient {
     pub async fn get_lists_by_state(
         &self,
         state: types::BatchState,
-    ) -> Result<types::GetListStatesResponse> {
+    ) -> Result<types::GetListStatesResponse, errors::BriteVerifyClientError> {
         match state {
             types::BatchState::Unknown => {
                 tracing::warn!("Declining to request lists using 'unknown' as list state filter");
@@ -1911,7 +2064,7 @@ impl BriteVerifyClient {
         &self,
         contacts: Option<ContactCollection>,
         auto_start: bool,
-    ) -> Result<types::CreateListResponse> {
+    ) -> Result<types::CreateListResponse, errors::BriteVerifyClientError> {
         // TODO(the-wondersmith): Apply bulk "rate" limit to supplied contacts
         //                        Bulk rate limits are:
         //                          - 100k Emails per page
@@ -1970,7 +2123,7 @@ impl BriteVerifyClient {
         list_id: ListId,
         contacts: ContactCollection,
         auto_start: bool,
-    ) -> Result<types::UpdateListResponse> {
+    ) -> Result<types::UpdateListResponse, errors::BriteVerifyClientError> {
         // TODO(the-wondersmith): Apply bulk "rate" limit to supplied contacts
         //                        Bulk rate limits are:
         //                          - 100k Emails per page
@@ -2000,19 +2153,16 @@ impl BriteVerifyClient {
     pub async fn get_list_by_id<ListId: ToString>(
         &self,
         list_id: ListId,
-    ) -> Result<types::VerificationListState> {
+    ) -> Result<types::VerificationListState, errors::BriteVerifyClientError> {
         let list_id: String = list_id.to_string();
+        let req_url = format!("{}/lists/{list_id}", &self.v3_base_url);
 
-        let response = self
-            .get(format!("{V3_API_BASE_URL}/lists/{list_id}"))
-            .send()
-            .await?;
+        let response = self._with_retry(self.get(req_url)).await?;
 
-        match response.status() {
-            StatusCode::OK => Ok(response.json::<types::VerificationListState>().await?),
-            _ => {
-                todo!("Add proper handling for non-200 responses")
-            }
+        if response.status() == StatusCode::OK {
+            Ok(response.json::<types::VerificationListState>().await?)
+        } else {
+            Err(errors::BriteVerifyClientError::UnusableResponse(response))
         }
     }
 
@@ -2048,19 +2198,19 @@ impl BriteVerifyClient {
     pub async fn delete_list_by_id<ListId: ToString>(
         &self,
         list_id: ListId,
-    ) -> Result<types::DeleteListResponse> {
+    ) -> Result<types::DeleteListResponse, errors::BriteVerifyClientError> {
         let list_id: String = list_id.to_string();
 
         let response = self
-            .delete(format!("{V3_API_BASE_URL}/lists/{list_id}"))
+            .delete(format!("{}/lists/{list_id}", &self.v3_base_url,))
             .send()
             .await?;
 
         match response.status() {
-            StatusCode::OK => Ok(response.json::<types::DeleteListResponse>().await?),
-            _ => {
-                todo!("Add proper handling for non-200 responses")
+            StatusCode::OK | StatusCode::ACCEPTED | StatusCode::NO_CONTENT => {
+                Ok(response.json::<types::DeleteListResponse>().await?)
             }
+            _ => Err(errors::BriteVerifyClientError::UnusableResponse(response)),
         }
     }
 
@@ -2094,7 +2244,7 @@ impl BriteVerifyClient {
     pub async fn terminate_list_by_id<ListId: ToString>(
         &self,
         list_id: ListId,
-    ) -> Result<types::UpdateListResponse> {
+    ) -> Result<types::UpdateListResponse, errors::BriteVerifyClientError> {
         self._create_or_update_list(
             Some(list_id),
             <Vec<types::VerificationRequest>>::new(),
@@ -2124,7 +2274,7 @@ impl BriteVerifyClient {
     pub async fn queue_list_for_processing<ListId: ToString>(
         &self,
         list_id: ListId,
-    ) -> Result<types::UpdateListResponse> {
+    ) -> Result<types::UpdateListResponse, errors::BriteVerifyClientError> {
         self._create_or_update_list(
             Some(list_id),
             <Vec<types::VerificationRequest>>::new(),
@@ -2160,12 +2310,14 @@ impl BriteVerifyClient {
     pub async fn get_results_by_list_id<ListId: ToString>(
         &self,
         list_id: ListId,
-    ) -> Result<Vec<types::BulkVerificationResult>> {
+    ) -> Result<Vec<types::BulkVerificationResult>, errors::BriteVerifyClientError> {
         let list_id = list_id.to_string();
         let list_status = self.get_list_by_id(&list_id).await?;
 
         if list_status.page_count.is_none() {
-            anyhow::bail!("Missing page count!");
+            return Err(errors::BriteVerifyClientError::Other(anyhow::Error::msg(
+                "Missing page count!",
+            )));
         }
 
         let page_count = std::cmp::max(1u64, list_status.page_count.unwrap());
@@ -2175,7 +2327,14 @@ impl BriteVerifyClient {
         )
         .await
         .into_iter()
-        .filter(Result::is_ok) // TODO: Change this filter to log failed page fetches
+        .filter(|page| {
+            if let Err(error) = page {
+                tracing::error!("{error:#?}");
+                false
+            } else {
+                true
+            }
+        })
         .map(|task_result| task_result.unwrap().results)
         .collect();
 
