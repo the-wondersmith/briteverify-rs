@@ -4,19 +4,21 @@
 use std::fmt;
 
 // Third-Party Imports
-#[cfg(all(not(doc), any(test, feature = "examples")))]
+#[doc(hidden)]
+#[cfg(any(test, feature = "examples"))]
 use strum_macros::EnumIter;
 
 // Conditional Imports
-#[cfg(all(not(doc), any(test, feature = "examples")))]
+#[doc(hidden)]
+#[cfg(any(test, feature = "examples"))]
 pub use self::foundry::*;
 
 // <editor-fold desc="// BatchState ...">
 
 /// The current state of a given batch verification job
 #[allow(missing_docs)]
-#[cfg_attr(all(not(doc), any(test, feature = "examples")), derive(EnumIter))]
-#[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(any(test, feature = "examples"), derive(EnumIter))]
+#[derive(Copy, Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all(deserialize = "snake_case"))]
 pub enum BatchState {
     Open,
@@ -33,12 +35,14 @@ pub enum BatchState {
 }
 
 impl Default for BatchState {
+    #[cfg_attr(tarpaulin, no_coverage)]
     fn default() -> Self {
         Self::Unknown
     }
 }
 
 impl fmt::Display for BatchState {
+    #[cfg_attr(tarpaulin, no_coverage)]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let display: String = (match self {
             Self::Open => "open",
@@ -59,6 +63,7 @@ impl fmt::Display for BatchState {
 }
 
 impl<'value, T: Into<&'value str>> From<T> for BatchState {
+    #[cfg_attr(tarpaulin, no_coverage)]
     fn from(value: T) -> Self {
         let value = value.into().trim().to_lowercase();
 
@@ -83,8 +88,8 @@ impl<'value, T: Into<&'value str>> From<T> for BatchState {
 
 /// The end result of a given verification
 #[allow(missing_docs)]
-#[cfg_attr(all(not(doc), any(test, feature = "examples")), derive(EnumIter))]
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(any(test, feature = "examples"), derive(EnumIter))]
+#[derive(Copy, Clone, Debug, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all(deserialize = "snake_case"))]
 pub enum VerificationStatus {
     Valid,
@@ -95,12 +100,14 @@ pub enum VerificationStatus {
 }
 
 impl Default for VerificationStatus {
+    #[cfg_attr(tarpaulin, no_coverage)]
     fn default() -> Self {
         Self::Unknown
     }
 }
 
 impl fmt::Display for VerificationStatus {
+    #[cfg_attr(tarpaulin, no_coverage)]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let display: String = (match self {
             Self::Valid => "valid",
@@ -120,8 +127,8 @@ impl fmt::Display for VerificationStatus {
 
 /// The current state of a given batch verification job
 #[allow(missing_docs)]
-#[cfg_attr(all(not(doc), any(test, feature = "examples")), derive(EnumIter))]
-#[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(any(test, feature = "examples"), derive(EnumIter))]
+#[derive(Copy, Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all(serialize = "snake_case", deserialize = "snake_case"))]
 pub enum BulkListDirective {
     Start,
@@ -131,12 +138,14 @@ pub enum BulkListDirective {
 }
 
 impl Default for BulkListDirective {
+    #[cfg_attr(tarpaulin, no_coverage)]
     fn default() -> Self {
         Self::Unknown
     }
 }
 
 impl fmt::Display for BulkListDirective {
+    #[cfg_attr(tarpaulin, no_coverage)]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let display: String = (match self {
             Self::Start => "start",
@@ -150,6 +159,7 @@ impl fmt::Display for BulkListDirective {
 }
 
 impl From<bool> for BulkListDirective {
+    #[cfg_attr(tarpaulin, no_coverage)]
     fn from(value: bool) -> Self {
         match value {
             true => Self::Start,
@@ -159,12 +169,14 @@ impl From<bool> for BulkListDirective {
 }
 
 impl From<String> for BulkListDirective {
+    #[cfg_attr(tarpaulin, no_coverage)]
     fn from(value: String) -> Self {
         Self::from(value.as_str())
     }
 }
 
 impl<'value> From<&'value str> for BulkListDirective {
+    #[cfg_attr(tarpaulin, no_coverage)]
     fn from(value: &'value str) -> Self {
         let value = value.trim().to_lowercase();
 
@@ -183,8 +195,8 @@ impl<'value> From<&'value str> for BulkListDirective {
 /// The "status" of a request to create a new
 /// or mutate an extant batch verification job
 #[allow(missing_docs)]
-#[cfg_attr(all(not(doc), any(test, feature = "examples")), derive(EnumIter))]
-#[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(any(test, feature = "examples"), derive(EnumIter))]
+#[derive(Copy, Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all(deserialize = "snake_case"))]
 pub enum BatchCreationStatus {
     Success,
@@ -199,12 +211,14 @@ pub enum BatchCreationStatus {
 }
 
 impl Default for BatchCreationStatus {
+    #[cfg_attr(tarpaulin, no_coverage)]
     fn default() -> Self {
         Self::Unknown
     }
 }
 
 impl fmt::Display for BatchCreationStatus {
+    #[cfg_attr(tarpaulin, no_coverage)]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let display: String = (match self {
             Self::Success => "success",
@@ -223,6 +237,7 @@ impl fmt::Display for BatchCreationStatus {
 }
 
 impl<'value, T: Into<&'value str>> From<T> for BatchCreationStatus {
+    #[cfg_attr(tarpaulin, no_coverage)]
     fn from(value: T) -> Self {
         let value = value.into().trim().to_lowercase();
 
@@ -243,7 +258,9 @@ impl<'value, T: Into<&'value str>> From<T> for BatchCreationStatus {
 
 // <editor-fold desc="// Test Helpers & Factory Implementations ...">
 
-#[cfg(all(not(doc), any(test, feature = "examples")))]
+#[doc(hidden)]
+#[cfg_attr(tarpaulin, no_coverage)]
+#[cfg(any(test, feature = "examples"))]
 mod foundry {
     // Crate-Level Imports
     use crate::utils::RandomizableEnum;

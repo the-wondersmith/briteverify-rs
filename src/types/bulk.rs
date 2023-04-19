@@ -16,7 +16,8 @@ use super::{
 };
 
 // Conditional Imports
-#[cfg(all(not(doc), any(test, feature = "examples")))]
+#[doc(hidden)]
+#[cfg(any(test, feature = "examples"))]
 pub use self::foundry::*;
 
 // <editor-fold desc="// Bulk Requests ...">
@@ -62,6 +63,7 @@ impl BulkVerificationRequest {
 }
 
 impl Default for BulkVerificationRequest {
+    #[cfg_attr(tarpaulin, no_coverage)]
     fn default() -> Self {
         BulkVerificationRequest {
             contacts: Vec::new(),
@@ -190,6 +192,7 @@ pub struct GetListStatesResponse(Vec<VerificationListState>);
 impl Deref for GetListStatesResponse {
     type Target = Vec<VerificationListState>;
 
+    #[cfg_attr(tarpaulin, no_coverage)]
     fn deref(&self) -> &Self::Target {
         &self.0
     }
@@ -495,6 +498,7 @@ pub enum BulkVerificationResult {
 }
 
 impl fmt::Debug for BulkContactVerificationResult {
+    #[cfg_attr(tarpaulin, no_coverage)]
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Full(response) => fmt::Debug::fmt(response, formatter),
@@ -509,6 +513,7 @@ impl fmt::Debug for BulkContactVerificationResult {
 }
 
 impl fmt::Debug for BulkVerificationResult {
+    #[cfg_attr(tarpaulin, no_coverage)]
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Email(response) => fmt::Debug::fmt(response, formatter),
@@ -543,7 +548,8 @@ pub struct BulkVerificationResponse {
 
 // <editor-fold desc="// Test Helpers & Factory Implementations ...">
 
-#[cfg(all(not(doc), any(test, feature = "examples")))]
+#[doc(hidden)]
+#[cfg(any(test, feature = "examples"))]
 mod foundry {
     // Third Party Imports
     use chrono::Datelike;
@@ -553,11 +559,13 @@ mod foundry {
     use crate::utils::{RandomizableEnum, RandomizableStruct};
 
     impl super::CreateListResponse {
+        #[cfg_attr(tarpaulin, no_coverage)]
         /// Generate a random successful `CreateListResponse`
         pub fn random_success() -> Self {
             Self::Success(super::CreateListSuccessResponse::random())
         }
 
+        #[cfg_attr(tarpaulin, no_coverage)]
         /// Generate a random failed `CreateListResponse`
         pub fn random_failure() -> Self {
             Self::Failed(super::CreateListErrorResponse::random())
@@ -565,11 +573,13 @@ mod foundry {
     }
 
     impl super::DeleteListResponse {
+        #[cfg_attr(tarpaulin, no_coverage)]
         /// Generate a random successful `DeleteListResponse`
         pub fn random_success() -> Self {
             Self::Success(super::DeleteListSuccessResponse::random())
         }
 
+        #[cfg_attr(tarpaulin, no_coverage)]
         /// Generate a random failed `DeleteListResponse`
         pub fn random_failure() -> Self {
             Self::Failed(super::DeleteListErrorResponse::random())
@@ -577,6 +587,7 @@ mod foundry {
     }
 
     impl super::GetListStatesResponse {
+        #[cfg_attr(tarpaulin, no_coverage)]
         /// Generate a `GetListStatesResponse` with the
         /// (optional) number of list states.
         ///
@@ -598,11 +609,13 @@ mod foundry {
     }
 
     impl super::BulkVerificationResult {
+        #[cfg_attr(tarpaulin, no_coverage)]
         /// Generate a random "email"-type `BulkVerificationResult`
         pub fn random_email_result() -> Self {
             Self::Email(super::BulkEmailVerificationArray::random())
         }
 
+        #[cfg_attr(tarpaulin, no_coverage)]
         /// Generate a random "contact"-type `BulkVerificationResult`
         pub fn random_contact_result() -> Self {
             Self::Contact(super::BulkContactVerificationResult::random())
@@ -610,36 +623,43 @@ mod foundry {
     }
 
     impl super::BulkContactVerificationResult {
+        #[cfg_attr(tarpaulin, no_coverage)]
         /// Generate a random "full"-type `BulkContactVerificationResult`
         fn random_full_result() -> Self {
             Self::Full(super::BulkFullVerificationResult::random())
         }
 
+        #[cfg_attr(tarpaulin, no_coverage)]
         /// Generate a random "email"-type `BulkContactVerificationResult`
         fn random_email_result() -> Self {
             Self::Email(super::BulkEmailVerificationResult::random())
         }
 
+        #[cfg_attr(tarpaulin, no_coverage)]
         /// Generate a random "phone"-type `BulkContactVerificationResult`
         fn random_phone_result() -> Self {
             Self::Phone(super::BulkPhoneNumberVerificationResult::random())
         }
 
+        #[cfg_attr(tarpaulin, no_coverage)]
         /// Generate a random "address"-type `BulkContactVerificationResult`
         fn random_address_result() -> Self {
             Self::Address(super::BulkAddressVerificationResult::random())
         }
 
         /// Generate a random "email and phone"-type `BulkContactVerificationResult`
+        #[cfg_attr(tarpaulin, no_coverage)]
         fn random_email_and_phone_result() -> Self {
             Self::EmailAndPhone(super::BulkEmailAndPhoneVerificationResult::random())
         }
 
         /// Generate a random "email and address"-type `BulkContactVerificationResult`
+        #[cfg_attr(tarpaulin, no_coverage)]
         fn random_email_and_address_result() -> Self {
             Self::EmailAndAddress(super::BulkEmailAndAddressVerificationResult::random())
         }
 
+        #[cfg_attr(tarpaulin, no_coverage)]
         /// Generate a random "phone and address"-type `BulkContactVerificationResult`
         fn random_phone_and_address_result() -> Self {
             Self::PhoneAndAddress(super::BulkPhoneAndAddressVerificationResult::random())
@@ -647,6 +667,7 @@ mod foundry {
     }
 
     impl Default for super::VerificationListState {
+        #[cfg_attr(tarpaulin, no_coverage)]
         fn default() -> Self {
             Self {
                 id: uuid::Uuid::new_v4().to_string(),
@@ -665,6 +686,7 @@ mod foundry {
     }
 
     impl RandomizableStruct for super::CreateListResponse {
+        #[cfg_attr(tarpaulin, no_coverage)]
         fn random() -> Self {
             if wc::Choice::prob(0.50) {
                 Self::random_success()
@@ -675,6 +697,7 @@ mod foundry {
     }
 
     impl RandomizableStruct for super::DeleteListResponse {
+        #[cfg_attr(tarpaulin, no_coverage)]
         fn random() -> Self {
             if wc::Choice::prob(0.50) {
                 Self::random_success()
@@ -685,6 +708,7 @@ mod foundry {
     }
 
     impl RandomizableStruct for super::BulkVerificationResult {
+        #[cfg_attr(tarpaulin, no_coverage)]
         fn random() -> Self {
             if wc::Choice::prob(0.50) {
                 Self::random_email_result()
@@ -695,6 +719,7 @@ mod foundry {
     }
 
     impl RandomizableStruct for super::VerificationListState {
+        #[cfg_attr(tarpaulin, no_coverage)]
         fn random() -> Self {
             let mut instance = Self {
                 state: super::BatchState::random(),
@@ -764,6 +789,7 @@ mod foundry {
     }
 
     impl RandomizableStruct for super::BulkVerificationRequest {
+        #[cfg_attr(tarpaulin, no_coverage)]
         fn random() -> Self {
             let contacts = (0..100)
                 .into_iter()
@@ -782,6 +808,7 @@ mod foundry {
     }
 
     impl RandomizableStruct for super::CreateListErrorResponse {
+        #[cfg_attr(tarpaulin, no_coverage)]
         fn random() -> Self {
             Self {
                 code: super::BatchCreationStatus::random(),
@@ -791,6 +818,7 @@ mod foundry {
     }
 
     impl RandomizableStruct for super::BulkVerificationResponse {
+        #[cfg_attr(tarpaulin, no_coverage)]
         fn random() -> Self {
             let result_count: u8 = wc::Numeric::number(5u8, 100u8);
 
@@ -806,6 +834,7 @@ mod foundry {
     }
 
     impl RandomizableStruct for super::CreateListSuccessResponse {
+        #[cfg_attr(tarpaulin, no_coverage)]
         fn random() -> Self {
             let mut list = super::VerificationListState::random();
 
@@ -820,6 +849,7 @@ mod foundry {
     }
 
     impl RandomizableStruct for super::DeleteListSuccessResponse {
+        #[cfg_attr(tarpaulin, no_coverage)]
         fn random() -> Self {
             Self {
                 status: super::BatchCreationStatus::Success,
@@ -829,6 +859,7 @@ mod foundry {
     }
 
     impl RandomizableStruct for super::BulkEmailVerificationArray {
+        #[cfg_attr(tarpaulin, no_coverage)]
         fn random() -> Self {
             let mut instance = Self {
                 email: crate::utils::random_email(),
@@ -871,6 +902,7 @@ mod foundry {
     }
 
     impl RandomizableStruct for super::BulkFullVerificationResult {
+        #[cfg_attr(tarpaulin, no_coverage)]
         fn random() -> Self {
             Self {
                 email: super::BulkEmailVerificationArray::random(),
@@ -881,6 +913,7 @@ mod foundry {
     }
 
     impl RandomizableStruct for super::BulkEmailVerificationResult {
+        #[cfg_attr(tarpaulin, no_coverage)]
         fn random() -> Self {
             Self {
                 email: super::BulkEmailVerificationArray::random(),
@@ -889,6 +922,7 @@ mod foundry {
     }
 
     impl RandomizableStruct for super::VerificationListErrorMessage {
+        #[cfg_attr(tarpaulin, no_coverage)]
         fn random() -> Self {
             Self {
                 code: "import_error".to_string(),
@@ -898,6 +932,7 @@ mod foundry {
     }
 
     impl RandomizableStruct for super::BulkAddressVerificationResult {
+        #[cfg_attr(tarpaulin, no_coverage)]
         fn random() -> Self {
             Self {
                 address: super::BulkAddressVerificationArray::random(),
@@ -906,6 +941,7 @@ mod foundry {
     }
 
     impl RandomizableStruct for super::BulkContactVerificationResult {
+        #[cfg_attr(tarpaulin, no_coverage)]
         fn random() -> Self {
             match wc::Numeric::number(1u8, 12u8) {
                 1 => Self::random_email_result(),
@@ -920,6 +956,7 @@ mod foundry {
     }
 
     impl RandomizableStruct for super::BulkPhoneNumberVerificationArray {
+        #[cfg_attr(tarpaulin, no_coverage)]
         fn random() -> Self {
             let mut instance = Self {
                 phone: crate::utils::FAKE.person.telephone(None),
@@ -956,6 +993,7 @@ mod foundry {
     }
 
     impl RandomizableStruct for super::BulkPhoneNumberVerificationResult {
+        #[cfg_attr(tarpaulin, no_coverage)]
         fn random() -> Self {
             Self {
                 phone: super::BulkPhoneNumberVerificationArray::random(),
@@ -964,6 +1002,7 @@ mod foundry {
     }
 
     impl RandomizableStruct for super::BulkEmailAndPhoneVerificationResult {
+        #[cfg_attr(tarpaulin, no_coverage)]
         fn random() -> Self {
             Self {
                 email: super::BulkEmailVerificationArray::random(),
@@ -973,6 +1012,7 @@ mod foundry {
     }
 
     impl RandomizableStruct for super::BulkEmailAndAddressVerificationResult {
+        #[cfg_attr(tarpaulin, no_coverage)]
         fn random() -> Self {
             Self {
                 email: super::BulkEmailVerificationArray::random(),
@@ -982,6 +1022,7 @@ mod foundry {
     }
 
     impl RandomizableStruct for super::BulkPhoneAndAddressVerificationResult {
+        #[cfg_attr(tarpaulin, no_coverage)]
         fn random() -> Self {
             Self {
                 phone: super::BulkPhoneNumberVerificationArray::random(),

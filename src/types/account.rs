@@ -6,7 +6,8 @@ use std::fmt;
 use chrono::prelude::{DateTime, Utc};
 
 // Conditional Imports
-#[cfg(all(not(doc), any(test, feature = "examples")))]
+#[doc(hidden)]
+#[cfg(any(test, feature = "examples"))]
 pub use self::foundry::*;
 
 // <editor-fold desc="// AccountCreditBalance ...">
@@ -30,6 +31,7 @@ pub struct AccountCreditBalance {
 }
 
 impl Default for AccountCreditBalance {
+    #[cfg_attr(tarpaulin, no_coverage)]
     fn default() -> Self {
         Self {
             credits: 0,
@@ -40,6 +42,7 @@ impl Default for AccountCreditBalance {
 }
 
 impl fmt::Display for AccountCreditBalance {
+    #[cfg_attr(tarpaulin, no_coverage)]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{:#?}", self)
     }
@@ -49,7 +52,9 @@ impl fmt::Display for AccountCreditBalance {
 
 // <editor-fold desc="// Test Helpers & Factory Implementations ...">
 
-#[cfg(all(not(doc), any(test, feature = "examples")))]
+#[doc(hidden)]
+#[cfg_attr(tarpaulin, no_coverage)]
+#[cfg(any(test, feature = "examples"))]
 mod foundry {
     // Third Party Imports
     use warlocks_cauldron as wc;

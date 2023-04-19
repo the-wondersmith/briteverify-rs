@@ -14,7 +14,8 @@ use serde_json::Value;
 
 use crate::types::BulkListDirective;
 
-#[cfg(all(not(doc), any(test, feature = "examples")))]
+#[doc(hidden)]
+#[cfg(any(test, feature = "examples"))]
 pub use self::test_utils::*;
 
 // <editor-fold desc="// Utility Functions ...">
@@ -101,16 +102,28 @@ pub(crate) fn deserialize_uri<'de, D: serde::Deserializer<'de>>(
 
 /// Fallibly cast the weirdly formatted timestamps
 /// returned by the BriteVerify API to `chrono::DateTime<Utc>`s.
-pub(crate) fn bv_timestamp_to_dt<T: ToString>(value: T) -> ChronoResult<DateTime<Utc>> {
-    let value = value.to_string();
-    match NaiveDateTime::parse_from_str(&value, "%m-%d-%Y %I:%M %P") {
+pub(crate) fn bv_timestamp_to_dt<T: AsRef<str>>(value: T) -> ChronoResult<DateTime<Utc>> {
+    let value = value.as_ref();
+    match NaiveDateTime::parse_from_str(value, "%m-%d-%Y %I:%M %P") {
         Ok(timestamp) => timestamp.and_local_timezone(Utc),
         Err(error) => {
-            let error = format!("{error:#?}");
-            tracing::error!("{error}");
-            tracing::error!("Unparsable timestamp value: {value}");
+            tracing::error!("Unparsable timestamp value: {value}\n{error:#?}");
             ChronoResult::None
         }
+    }
+}
+
+#[doc(hidden)]
+/// Simple abstraction for logic shared by
+/// `deserialize_timestamp` and `deserialize_maybe_timestamp`
+fn _deserialize_timestamp<SerdeError: serde::de::Error>(
+    timestamp: String,
+) -> Result<DateTime<Utc>, SerdeError> {
+    match bv_timestamp_to_dt(&timestamp) {
+        ChronoResult::None => Err(serde::de::Error::custom(format!(
+            "Couldn't parse the supplied value into a valid timestamp: {timestamp:?}"
+        ))),
+        ChronoResult::Single(parsed) | ChronoResult::Ambiguous(parsed, _) => Ok(parsed),
     }
 }
 
@@ -120,13 +133,8 @@ pub(crate) fn bv_timestamp_to_dt<T: ToString>(value: T) -> ChronoResult<DateTime
 pub(crate) fn deserialize_timestamp<'de, D: serde::Deserializer<'de>>(
     deserializer: D,
 ) -> Result<DateTime<Utc>, D::Error> {
-    let value: String = <String as serde::Deserialize>::deserialize(deserializer)?;
-    match bv_timestamp_to_dt(&value) {
-        ChronoResult::None => Err(serde::de::Error::custom(format!(
-            "Couldn't parse the supplied value into a valid timestamp: {value:?}"
-        ))),
-        ChronoResult::Single(parsed) | ChronoResult::Ambiguous(parsed, _) => Ok(parsed),
-    }
+    let timestamp: String = <String as serde::Deserialize>::deserialize(deserializer)?;
+    _deserialize_timestamp(timestamp)
 }
 
 /// Deserializer implementation for enabling `serde`
@@ -143,13 +151,9 @@ pub(crate) fn deserialize_maybe_timestamp<'de, D: serde::Deserializer<'de>>(
             if timestamp.is_empty() {
                 Ok(None)
             } else {
-                match bv_timestamp_to_dt(&timestamp) {
-                    ChronoResult::None => Err(serde::de::Error::custom(format!(
-                        "Couldn't parse the supplied value into a valid timestamp: {timestamp:?}"
-                    ))),
-                    ChronoResult::Single(parsed) | ChronoResult::Ambiguous(parsed, _) => {
-                        Ok(Some(parsed))
-                    }
+                match _deserialize_timestamp(timestamp) {
+                    Ok(result) => Ok(Some(result)),
+                    Err(error) => Err(error),
                 }
             }
         }
@@ -198,7 +202,9 @@ pub(crate) fn deserialize_boolean<'de, D: serde::Deserializer<'de>>(
 
 // <editor-fold desc="// Test Factory Utilities ...">
 
-#[cfg(all(not(doc), any(test, feature = "examples")))]
+#[doc(hidden)]
+#[cfg_attr(tarpaulin, no_coverage)]
+#[cfg(any(test, feature = "examples"))]
 /// Utility functions for `briteverify-rs`'s test suite and examples
 pub mod test_utils {
     use chrono::{Datelike, Timelike};
@@ -345,21 +351,41 @@ pub mod test_utils {
 
 #[cfg(test)]
 mod tests {
+    // Standard Library Imports
+    use std::ops::Deref;
+
     // Third-Party Dependencies
     use anyhow::Result;
-    use chrono::{LocalResult, Timelike};
+    use chrono::{Datelike, Timelike};
+    use once_cell::sync::Lazy;
     use pretty_assertions::assert_eq;
+    use rstest::{fixture, rstest};
     use serde_test::{Deserializer, Token};
     use strum::IntoEnumIterator;
     use warlocks_cauldron as wc;
 
     // Crate-Level Dependencies
-    use super::{Duration, Utc};
+    use super::{ChronoResult, DateTime, Duration, Uri, Utc};
+
+    const TIMESTAMP: &'static str = "01-11-2023 4:45 pm";
+    static RECENT_DATETIMES: Lazy<Vec<DateTime<Utc>>> = Lazy::new(|| {
+        let start_date = super::within_the_last_week()
+            .with_second(0)
+            .and_then(|value| value.with_nanosecond(0))
+            .unwrap();
+
+        wc::Datetime::bulk_create_datetimes::<Utc>(start_date, Utc::now(), wc::Duration::minutes(1))
+    });
+
+    #[fixture]
+    fn recent_datetimes() -> &'static Vec<DateTime<Utc>> {
+        RECENT_DATETIMES.deref()
+    }
 
     /// Test that the `float_to_duration` utility
     /// returns a valid `Duration` when the supplied
     /// value is a valid `f64`
-    #[test]
+    #[rstest]
     fn test_valid_float_to_duration() -> Result<()> {
         let tokens: [Token; 1] = [Token::F64(1.0)];
         let expected: Duration = Duration::from_secs(1);
@@ -375,8 +401,37 @@ mod tests {
     /// value cannot be deserialized as an `f64` or
     /// when the deserialized value cannot be converted
     /// to a valid `Duration`
-    #[test]
-    fn test_invalid_float_to_duration() -> Result<()> {
+    #[rstest]
+    fn test_invalid_float_to_duration() -> () {
+        let tokens: [Token; 1] = [Token::F64(-1.0)];
+
+        let mut deserializer: Deserializer = Deserializer::new(&tokens);
+
+        let result = super::float_to_duration(&mut deserializer);
+
+        assert!(result.is_err())
+    }
+
+    /// Test that the `duration_to_float` utility
+    /// behaves as expected when supplied with a
+    /// valid `Duration` and usable `Serializer`
+    #[rstest]
+    fn test_duration_to_float() -> () {
+        let value = Duration::from_secs(10);
+        let mut serializer = serde_json::Serializer::new(<Vec<u8>>::new());
+
+        let result = super::duration_to_float(&value, &mut serializer);
+
+        assert!(result.is_ok())
+    }
+
+    /// Test that the `float_to_duration` utility
+    /// returns an error `Duration` when the supplied
+    /// value cannot be deserialized as an `f64` or
+    /// when the deserialized value cannot be converted
+    /// to a valid `Duration`
+    #[rstest]
+    fn test_string_to_duration_fails() -> Result<()> {
         let tokens: [Token; 1] = [Token::String("got-em")];
 
         let mut deserializer: Deserializer = Deserializer::new(&tokens);
@@ -389,12 +444,12 @@ mod tests {
     /// Test that the `empty_string_is_none` utility
     /// returns `None` when the supplied value is either
     /// an empty string or the `None` token
-    #[test]
+    #[rstest]
     fn test_empty_string_is_none() -> Result<()> {
-        let mut tokens: [[Token; 2]; 2] =
+        let tokens: [[Token; 2]; 2] =
             [[Token::Some, Token::String("")], [Token::None, Token::None]];
 
-        for token_array in tokens.iter_mut() {
+        for token_array in tokens.iter() {
             let mut deserializer: Deserializer = Deserializer::new(token_array);
             let result: Option<String> = super::empty_string_is_none(&mut deserializer)?;
 
@@ -407,7 +462,7 @@ mod tests {
     /// Test that the `empty_string_is_none` utility
     /// returns a valid `String` when the supplied
     /// value is a non-empty string
-    #[test]
+    #[rstest]
     fn test_non_empty_string_is_not_none() -> Result<()> {
         let expected: String = "got-em".to_string();
         let tokens: [Token; 2] = [Token::Some, Token::String("got-em")];
@@ -420,30 +475,90 @@ mod tests {
         Ok(assert_eq!(result.unwrap(), expected))
     }
 
+    /// Test that the `serialize_uri` utility
+    /// behaves as expected
+    #[rstest]
+    fn test_serialize_uri() -> () {
+        let (some_value, none_value): (Option<Uri>, Option<Uri>) =
+            (Some(Uri::from_static("https://example.com")), None);
+        let mut serializer = serde_json::Serializer::new(<Vec<u8>>::new());
+
+        let some_result = super::serialize_uri(&some_value, &mut serializer);
+        let none_result = super::serialize_uri(&none_value, &mut serializer);
+
+        assert!(some_result.is_ok());
+        assert!(none_result.is_ok());
+    }
+
+    /// Test that the `deserialize_uri` utility
+    /// returns `None` when the supplied value is either
+    /// an empty string or the `None` token
+    #[rstest]
+    fn test_deserialize_empty_uri() -> () {
+        let tokens: [[Token; 2]; 2] =
+            [[Token::Some, Token::String("")], [Token::None, Token::None]];
+
+        for token_array in tokens.iter() {
+            let mut deserializer: Deserializer = Deserializer::new(token_array);
+            let result: Result<Option<Uri>, _> = super::deserialize_uri(&mut deserializer);
+
+            assert!(result.is_ok());
+            assert!(result.unwrap().is_none());
+        }
+    }
+
+    /// Test that the `deserialize_uri` utility
+    /// returns a valid `Uri` when the supplied
+    /// value is a non-empty URI-like string
+    #[rstest]
+    fn test_deserialize_valid_uri() -> () {
+        let src: &str = "https://example.com";
+        let expected: Uri = Uri::from_static(src);
+        let tokens: [Token; 2] = [Token::Some, Token::String(src)];
+
+        let mut deserializer: Deserializer = Deserializer::new(&tokens);
+        let result: Result<Option<Uri>, _> = super::deserialize_uri(&mut deserializer);
+
+        assert!(result.is_ok());
+
+        let result = result.unwrap();
+
+        assert!(result.is_some());
+
+        let deserialized = result.unwrap();
+
+        assert_eq!(expected, deserialized)
+    }
+
+    /// Test that the `deserialize_uri` utility
+    /// returns an error when the supplied
+    /// value is a non-empty, non-URI-like string
+    #[rstest]
+    fn test_deserialize_invalid_uri() -> () {
+        let tokens: [Token; 2] = [
+            Token::Some,
+            Token::String("the most dangerous type of canoes are volcanoes"),
+        ];
+
+        let mut deserializer: Deserializer = Deserializer::new(&tokens);
+        let result = super::deserialize_uri(&mut deserializer);
+
+        assert!(result.is_err())
+    }
+
     /// Test that the `bv_timestamp_to_dt` utility
     /// returns a valid `DateTime<Utc>` when the
     /// supplied value is a BriteVerify-formatted
     /// timestamp string (i.e."%m-%d-%Y %I:%M %P")
-    #[test]
-    fn test_bv_timestamp_roundtrip() -> Result<()> {
-        let start_date = super::within_the_last_week()
-            .with_second(0)
-            .and_then(|value| value.with_nanosecond(0))
-            .unwrap();
-
-        let inputs = wc::Datetime::bulk_create_datetimes::<Utc>(
-            start_date,
-            Utc::now(),
-            wc::Duration::minutes(1),
-        );
-
-        for value in inputs.iter() {
+    #[rstest]
+    fn test_valid_bv_timestamp(recent_datetimes: &Vec<DateTime<Utc>>) -> Result<()> {
+        for value in recent_datetimes.iter() {
             let parsed =
-                match super::bv_timestamp_to_dt(format!("{}", value.format("%m-%d-%Y %I:%M %P"))) {
-                    LocalResult::None => {
-                        anyhow::bail!("Couldn't parse: {value}")
+                match super::bv_timestamp_to_dt(value.format("%m-%d-%Y %I:%M %P").to_string()) {
+                    ChronoResult::None => {
+                        anyhow::bail!("Couldn't parse: {value:#?}")
                     }
-                    LocalResult::Single(stamp) | LocalResult::Ambiguous(stamp, _) => stamp,
+                    ChronoResult::Single(stamp) | ChronoResult::Ambiguous(stamp, _) => stamp,
                 };
 
             assert_eq!(value, &parsed);
@@ -452,10 +567,116 @@ mod tests {
         Ok(())
     }
 
+    /// Test that the `bv_timestamp_to_dt` utility
+    /// returns `chrono::LocalResult::None` when the
+    /// supplied value is not a BriteVerify-formatted
+    /// timestamp string
+    #[rstest]
+    fn test_invalid_bv_timestamp(recent_datetimes: &Vec<DateTime<Utc>>) -> () {
+        for value in recent_datetimes.iter() {
+            let parsed = super::bv_timestamp_to_dt(value.to_rfc2822());
+            assert_eq!(parsed, ChronoResult::None);
+        }
+    }
+
+    /// Test that the `deserialize_timestamp` utility
+    /// returns a valid `DateTime<Utc>` when the value
+    /// being deserialized is a BriteVerify-formatted
+    /// timestamp string (i.e."%m-%d-%Y %I:%M %P")
+    #[rstest]
+    fn test_deserialize_timestamp() -> () {
+        let tokens: [Token; 1] = [Token::String(TIMESTAMP)];
+
+        let mut deserializer: Deserializer = Deserializer::new(&tokens);
+        let result = super::deserialize_timestamp(&mut deserializer);
+
+        assert!(result.is_ok());
+
+        let deserialized = result.unwrap();
+
+        assert_eq!(deserialized.day(), 11u32);
+        assert_eq!(deserialized.month(), 1u32);
+        assert_eq!(deserialized.year(), 2023i32);
+
+        assert_eq!(deserialized.minute(), 45u32);
+        assert_eq!(deserialized.hour12(), (true, 4u32));
+    }
+
+    /// Test that the `deserialize_timestamp` utility
+    /// returns an error when the value being deserialized
+    /// is anything other than a BriteVerify-formatted timestamp
+    #[rstest]
+    fn test_deserialize_non_timestamp() -> () {
+        let tokens: [Token; 1] = [Token::String(
+            "I thought I'd do was I'd pretend I was one of those deaf-mutes",
+        )];
+
+        let mut deserializer: Deserializer = Deserializer::new(&tokens);
+        let result = super::deserialize_timestamp(&mut deserializer);
+
+        assert!(result.is_err());
+    }
+
+    /// Test that the `deserialize_maybe_timestamp`
+    /// utility behaves as expected when the value
+    /// being deserialized is a properly formatted
+    /// timestamp string value
+    #[rstest]
+    fn test_deserialize_some_timestamp() -> () {
+        let tokens: [Token; 2] = [Token::Some, Token::String(TIMESTAMP)];
+
+        let mut deserializer: Deserializer = Deserializer::new(&tokens);
+        let result = super::deserialize_maybe_timestamp(&mut deserializer);
+
+        assert!(result.is_ok());
+
+        let result = result.unwrap();
+
+        assert!(result.is_some());
+
+        let deserialized = result.unwrap();
+
+        assert_eq!(deserialized.hour(), 16u32)
+    }
+
+    /// Test that the `deserialize_maybe_timestamp`
+    /// utility behaves as expected when the value
+    /// being deserialized is either `null` or an
+    /// empty string
+    #[rstest]
+    fn test_deserialize_empty_timestamp() -> () {
+        let tokens: [[Token; 2]; 2] =
+            [[Token::Some, Token::String("")], [Token::None, Token::None]];
+
+        for token_array in tokens.iter() {
+            let mut deserializer: Deserializer = Deserializer::new(token_array);
+            let result = super::deserialize_maybe_timestamp(&mut deserializer);
+
+            assert!(result.is_ok());
+            assert!(result.unwrap().is_none());
+        }
+    }
+
+    /// Test that the `deserialize_maybe_timestamp` utility
+    /// returns an error when the value being deserialized
+    /// is anything other than a BriteVerify-formatted timestamp
+    #[rstest]
+    fn test_deserialize_some_non_timestamp() -> () {
+        let tokens: [Token; 2] = [
+            Token::Some,
+            Token::String("Ostensibly, the ol' razzle dazzle"),
+        ];
+
+        let mut deserializer: Deserializer = Deserializer::new(&tokens);
+        let result = super::deserialize_maybe_timestamp(&mut deserializer);
+
+        assert!(result.is_err());
+    }
+
     /// Test that the `is_unknown_list_directive`
     /// utility correctly identifies the "unknown"
     /// variant of the `ListDirective` enum
-    #[test]
+    #[rstest]
     fn test_is_unknown_list_directive() -> Result<()> {
         for member in super::BulkListDirective::iter() {
             let result = super::is_unknown_list_directive(&member);
@@ -476,11 +697,11 @@ mod tests {
     /// returns a valid `bool` when the supplied
     /// value represents a valid `bool` (either
     /// directly or as a string)
-    #[test]
-    fn test_deserialize_boolean() -> Result<()> {
-        let mut tokens: [[Token; 1]; 2] = [[Token::Bool(true)], [Token::String("true")]];
+    #[rstest]
+    fn test_deserialize_boolean() -> () {
+        let tokens: [[Token; 1]; 2] = [[Token::Bool(true)], [Token::String("true")]];
 
-        for token_array in tokens.iter_mut() {
+        for token_array in tokens.iter() {
             let mut deserializer: Deserializer = Deserializer::new(token_array);
             let result = super::deserialize_boolean(&mut deserializer);
 
@@ -491,8 +712,21 @@ mod tests {
             );
             assert_eq!(result.unwrap(), true);
         }
+    }
 
-        Ok(())
+    /// Test that the `deserialize_boolean` utility
+    /// returns an error when the supplied value
+    /// represents something other than a valid `bool`
+    #[rstest]
+    fn test_deserialize_non_boolean() -> () {
+        let tokens: [Token; 1] = [Token::String(
+            "a literal boolean value, you know, like 'true' or maybe 'false'",
+        )];
+
+        let mut deserializer: Deserializer = Deserializer::new(&tokens);
+        let result = super::deserialize_boolean(&mut deserializer);
+
+        assert!(result.is_err())
     }
 }
 

@@ -1,6 +1,9 @@
+.env
+.actrc
 .cargo/
 .idea/
 target/
+*.profraw
 src/main.rs
 **/scratch.*
 **/scratch*.*

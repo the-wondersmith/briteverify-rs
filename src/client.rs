@@ -295,6 +295,7 @@ impl BriteVerifyClientBuilder {
     /// # Ok(())
     /// # }
     /// ```
+    #[cfg_attr(tarpaulin, no_coverage)]
     pub fn timeout(mut self, timeout: Duration) -> Self {
         self.builder = self.builder.timeout(timeout);
         self
@@ -315,6 +316,7 @@ impl BriteVerifyClientBuilder {
     /// # Ok(())
     /// # }
     /// ```
+    #[cfg_attr(tarpaulin, no_coverage)]
     pub fn connect_timeout(mut self, timeout: Duration) -> Self {
         self.builder = self.builder.connect_timeout(timeout);
         self
@@ -335,6 +337,7 @@ impl BriteVerifyClientBuilder {
     /// # Ok(())
     /// # }
     /// ```
+    #[cfg_attr(tarpaulin, no_coverage)]
     pub fn user_agent<V>(mut self, value: V) -> BriteVerifyClientBuilder
     where
         V: TryInto<HeaderValue>,
@@ -368,6 +371,7 @@ impl BriteVerifyClientBuilder {
     /// # Ok(())
     /// # }
     /// ```
+    #[cfg_attr(tarpaulin, no_coverage)]
     pub fn default_headers(mut self, headers: HeaderMap) -> BriteVerifyClientBuilder {
         self.builder = self.builder.default_headers(headers);
         self
@@ -397,6 +401,7 @@ impl BriteVerifyClientBuilder {
     /// # Ok(())
     /// # }
     /// ```
+    #[cfg_attr(tarpaulin, no_coverage)]
     pub fn gzip(mut self, enable: bool) -> BriteVerifyClientBuilder {
         self.builder = self.builder.gzip(enable);
         self
@@ -426,6 +431,7 @@ impl BriteVerifyClientBuilder {
     /// # Ok(())
     /// # }
     /// ```
+    #[cfg_attr(tarpaulin, no_coverage)]
     pub fn brotli(mut self, enable: bool) -> BriteVerifyClientBuilder {
         self.builder = self.builder.brotli(enable);
         self
@@ -447,6 +453,7 @@ impl BriteVerifyClientBuilder {
     /// # Ok(())
     /// # }
     /// ```
+    #[cfg_attr(tarpaulin, no_coverage)]
     pub fn no_gzip(mut self) -> BriteVerifyClientBuilder {
         self.builder = self.builder.no_gzip();
         self
@@ -468,6 +475,7 @@ impl BriteVerifyClientBuilder {
     /// # Ok(())
     /// # }
     /// ```
+    #[cfg_attr(tarpaulin, no_coverage)]
     pub fn no_brotli(mut self) -> BriteVerifyClientBuilder {
         self.builder = self.builder.no_brotli();
         self
@@ -489,6 +497,7 @@ impl BriteVerifyClientBuilder {
     /// # Ok(())
     /// # }
     /// ```
+    #[cfg_attr(tarpaulin, no_coverage)]
     pub fn no_deflate(mut self) -> BriteVerifyClientBuilder {
         self.builder = self.builder.no_deflate();
         self
@@ -512,6 +521,7 @@ impl BriteVerifyClientBuilder {
     /// # Ok(())
     /// # }
     /// ```
+    #[cfg_attr(tarpaulin, no_coverage)]
     pub fn redirect(mut self, policy: reqwest::redirect::Policy) -> BriteVerifyClientBuilder {
         self.builder = self.builder.redirect(policy);
         self
@@ -531,6 +541,7 @@ impl BriteVerifyClientBuilder {
     /// # Ok(())
     /// # }
     /// ```
+    #[cfg_attr(tarpaulin, no_coverage)]
     pub fn referer(mut self, enable: bool) -> BriteVerifyClientBuilder {
         self.builder = self.builder.referer(enable);
         self
@@ -555,6 +566,7 @@ impl BriteVerifyClientBuilder {
     /// # Ok(())
     /// # }
     /// ```
+    #[cfg_attr(tarpaulin, no_coverage)]
     pub fn proxy(mut self, proxy: reqwest::Proxy) -> BriteVerifyClientBuilder {
         self.builder = self.builder.proxy(proxy);
         self
@@ -579,6 +591,7 @@ impl BriteVerifyClientBuilder {
     /// # Ok(())
     /// # }
     /// ```
+    #[cfg_attr(tarpaulin, no_coverage)]
     pub fn no_proxy(mut self) -> BriteVerifyClientBuilder {
         self.builder = self.builder.no_proxy();
         self
@@ -599,6 +612,7 @@ impl BriteVerifyClientBuilder {
     /// # Ok(())
     /// # }
     /// ```
+    #[cfg_attr(tarpaulin, no_coverage)]
     pub fn connection_verbose(mut self, verbose: bool) -> BriteVerifyClientBuilder {
         self.builder = self.builder.connection_verbose(verbose);
         self
@@ -624,6 +638,7 @@ impl BriteVerifyClientBuilder {
     /// # Ok(())
     /// # }
     /// ```
+    #[cfg_attr(tarpaulin, no_coverage)]
     pub fn pool_idle_timeout<D: Into<Option<Duration>>>(
         mut self,
         value: D,
@@ -644,6 +659,7 @@ impl BriteVerifyClientBuilder {
     /// # Ok(())
     /// # }
     /// ```
+    #[cfg_attr(tarpaulin, no_coverage)]
     pub fn pool_max_idle_per_host(mut self, value: usize) -> BriteVerifyClientBuilder {
         self.builder = self.builder.pool_max_idle_per_host(value);
         self
@@ -684,6 +700,7 @@ impl BriteVerifyClientBuilder {
     /// # Ok(())
     /// # }
     /// ```
+    #[cfg_attr(tarpaulin, no_coverage)]
     pub fn http1_title_case_headers(mut self) -> BriteVerifyClientBuilder {
         self.builder = self.builder.http1_title_case_headers();
         self
@@ -705,6 +722,7 @@ impl BriteVerifyClientBuilder {
     /// # Ok(())
     /// # }
     /// ```
+    #[cfg_attr(tarpaulin, no_coverage)]
     pub fn http1_allow_obsolete_multiline_headers_in_responses(
         mut self,
         value: bool,
@@ -730,6 +748,7 @@ impl BriteVerifyClientBuilder {
     /// # Ok(())
     /// # }
     /// ```
+    #[cfg_attr(tarpaulin, no_coverage)]
     pub fn http1_only(mut self) -> BriteVerifyClientBuilder {
         self.builder = self.builder.http1_only();
         self
@@ -747,6 +766,7 @@ impl BriteVerifyClientBuilder {
     /// # Ok(())
     /// # }
     /// ```
+    #[cfg_attr(tarpaulin, no_coverage)]
     pub fn http09_responses(mut self) -> BriteVerifyClientBuilder {
         self.builder = self.builder.http09_responses();
         self
@@ -767,6 +787,7 @@ impl BriteVerifyClientBuilder {
     /// # Ok(())
     /// # }
     /// ```
+    #[cfg_attr(tarpaulin, no_coverage)]
     pub fn http2_prior_knowledge(mut self) -> BriteVerifyClientBuilder {
         self.builder = self.builder.http2_prior_knowledge();
         self
@@ -788,6 +809,7 @@ impl BriteVerifyClientBuilder {
     /// # Ok(())
     /// # }
     /// ```
+    #[cfg_attr(tarpaulin, no_coverage)]
     pub fn http2_initial_stream_window_size<WindowSize: Into<Option<u32>>>(
         mut self,
         value: WindowSize,
@@ -811,6 +833,7 @@ impl BriteVerifyClientBuilder {
     /// # Ok(())
     /// # }
     /// ```
+    #[cfg_attr(tarpaulin, no_coverage)]
     pub fn http2_initial_connection_window_size<WindowSize: Into<Option<u32>>>(
         mut self,
         value: WindowSize,
@@ -838,6 +861,7 @@ impl BriteVerifyClientBuilder {
     /// # Ok(())
     /// # }
     /// ```
+    #[cfg_attr(tarpaulin, no_coverage)]
     pub fn http2_adaptive_window(mut self, enabled: bool) -> BriteVerifyClientBuilder {
         self.builder = self.builder.http2_adaptive_window(enabled);
         self
@@ -858,6 +882,7 @@ impl BriteVerifyClientBuilder {
     /// # Ok(())
     /// # }
     /// ```
+    #[cfg_attr(tarpaulin, no_coverage)]
     pub fn http2_max_frame_size<FrameSize: Into<Option<u32>>>(
         mut self,
         value: FrameSize,
@@ -884,6 +909,7 @@ impl BriteVerifyClientBuilder {
     /// # Ok(())
     /// # }
     /// ```
+    #[cfg_attr(tarpaulin, no_coverage)]
     pub fn http2_keep_alive_interval<Interval: Into<Option<Duration>>>(
         mut self,
         interval: Interval,
@@ -913,6 +939,7 @@ impl BriteVerifyClientBuilder {
     /// # Ok(())
     /// # }
     /// ```
+    #[cfg_attr(tarpaulin, no_coverage)]
     pub fn http2_keep_alive_timeout(mut self, timeout: Duration) -> BriteVerifyClientBuilder {
         self.builder = self.builder.http2_keep_alive_timeout(timeout);
         self
@@ -937,6 +964,7 @@ impl BriteVerifyClientBuilder {
     /// # Ok(())
     /// # }
     /// ```
+    #[cfg_attr(tarpaulin, no_coverage)]
     pub fn http2_keep_alive_while_idle(mut self, enabled: bool) -> BriteVerifyClientBuilder {
         self.builder = self.builder.http2_keep_alive_while_idle(enabled);
         self
@@ -958,6 +986,7 @@ impl BriteVerifyClientBuilder {
     /// # Ok(())
     /// # }
     /// ```
+    #[cfg_attr(tarpaulin, no_coverage)]
     pub fn tcp_nodelay(mut self, enabled: bool) -> BriteVerifyClientBuilder {
         self.builder = self.builder.tcp_nodelay(enabled);
         self
@@ -980,6 +1009,7 @@ impl BriteVerifyClientBuilder {
     /// # Ok(())
     /// # }
     /// ```
+    #[cfg_attr(tarpaulin, no_coverage)]
     pub fn local_address<T: Into<Option<std::net::IpAddr>>>(
         mut self,
         address: T,
@@ -1004,6 +1034,7 @@ impl BriteVerifyClientBuilder {
     /// # Ok(())
     /// # }
     /// ```
+    #[cfg_attr(tarpaulin, no_coverage)]
     pub fn tcp_keepalive<D: Into<Option<Duration>>>(
         mut self,
         value: D,
@@ -1036,6 +1067,7 @@ impl BriteVerifyClientBuilder {
     /// # Ok(())
     /// # }
     /// ```
+    #[cfg_attr(tarpaulin, no_coverage)]
     pub fn add_root_certificate(mut self, cert: reqwest::Certificate) -> BriteVerifyClientBuilder {
         self.builder = self.builder.add_root_certificate(cert);
         self
@@ -1055,6 +1087,7 @@ impl BriteVerifyClientBuilder {
     /// # Ok(())
     /// # }
     /// ```
+    #[cfg_attr(tarpaulin, no_coverage)]
     pub fn tls_built_in_root_certs(mut self, enabled: bool) -> BriteVerifyClientBuilder {
         self.builder = self.builder.tls_built_in_root_certs(enabled);
         self
@@ -1079,6 +1112,7 @@ impl BriteVerifyClientBuilder {
     /// # Ok(())
     /// # }
     /// ```
+    #[cfg_attr(tarpaulin, no_coverage)]
     pub fn identity(mut self, value: reqwest::Identity) -> BriteVerifyClientBuilder {
         self.builder = self.builder.identity(value);
         self
@@ -1110,6 +1144,7 @@ impl BriteVerifyClientBuilder {
     /// # Ok(())
     /// # }
     /// ```
+    #[cfg_attr(tarpaulin, no_coverage)]
     pub fn danger_accept_invalid_certs(mut self, enabled: bool) -> BriteVerifyClientBuilder {
         self.builder = self.builder.danger_accept_invalid_certs(enabled);
         self
@@ -1129,6 +1164,7 @@ impl BriteVerifyClientBuilder {
     /// # Ok(())
     /// # }
     /// ```
+    #[cfg_attr(tarpaulin, no_coverage)]
     pub fn tls_sni(mut self, enabled: bool) -> BriteVerifyClientBuilder {
         self.builder = self.builder.tls_sni(enabled);
         self
@@ -1155,6 +1191,7 @@ impl BriteVerifyClientBuilder {
     /// # Ok(())
     /// # }
     /// ```
+    #[cfg_attr(tarpaulin, no_coverage)]
     pub fn min_tls_version(mut self, version: reqwest::tls::Version) -> BriteVerifyClientBuilder {
         self.builder = self.builder.min_tls_version(version);
         self
@@ -1181,6 +1218,7 @@ impl BriteVerifyClientBuilder {
     /// # Ok(())
     /// # }
     /// ```
+    #[cfg_attr(tarpaulin, no_coverage)]
     pub fn max_tls_version(mut self, version: reqwest::tls::Version) -> BriteVerifyClientBuilder {
         self.builder = self.builder.max_tls_version(version);
         self
@@ -1203,6 +1241,7 @@ impl BriteVerifyClientBuilder {
     /// # Ok(())
     /// # }
     /// ```
+    #[cfg_attr(tarpaulin, no_coverage)]
     pub fn no_trust_dns(mut self) -> BriteVerifyClientBuilder {
         self.builder = self.builder.no_trust_dns();
         self
@@ -1222,6 +1261,7 @@ impl BriteVerifyClientBuilder {
     /// # Ok(())
     /// # }
     /// ```
+    #[cfg_attr(tarpaulin, no_coverage)]
     pub fn https_only(mut self, enabled: bool) -> BriteVerifyClientBuilder {
         self.builder = self.builder.https_only(enabled);
         self
@@ -1248,6 +1288,7 @@ impl BriteVerifyClientBuilder {
     /// # Ok(())
     /// # }
     /// ```
+    #[cfg_attr(tarpaulin, no_coverage)]
     pub fn resolve(
         mut self,
         domain: &str,
@@ -1282,6 +1323,7 @@ impl BriteVerifyClientBuilder {
     /// # Ok(())
     /// # }
     /// ```
+    #[cfg_attr(tarpaulin, no_coverage)]
     pub fn resolve_to_addrs(
         mut self,
         domain: &str,
@@ -1302,7 +1344,7 @@ impl BriteVerifyClientBuilder {
     /// [`resolve_to_addrs`]: #method.resolve_to_addrs
     ///
     /// #### Example
-    /// ```no_run
+    /// ```ignore
     /// # use briteverify_rs::BriteVerifyClientBuilder;
     /// #
     /// # fn doc<Resolver: reqwest::dns::Resolve + 'static>() -> anyhow::Result<()> {
@@ -1316,6 +1358,7 @@ impl BriteVerifyClientBuilder {
     /// # Ok(())
     /// # }
     /// ```
+    #[cfg_attr(tarpaulin, no_coverage)]
     pub fn dns_resolver<R: reqwest::dns::Resolve + 'static>(
         mut self,
         resolver: std::sync::Arc<R>,
@@ -1925,7 +1968,7 @@ impl BriteVerifyClient {
     /// let today: NaiveDate = Utc::now().date_naive();
     /// let date: NaiveDate = today.with_day(today.day() - 2).unwrap();
     ///
-    /// let lists: GetListStatesResponse = client.get_lists_by_date(&date).await?;
+    /// let lists: GetListStatesResponse = client.get_lists_by_date(date.clone()).await?;
     ///
     /// println!("Bulk verification lists for '{date}': {lists:#?}");
     /// # Ok(())
@@ -2022,12 +2065,13 @@ impl BriteVerifyClient {
     /// ##### Create Empty List
     /// ```no_run
     /// # use briteverify_rs::BriteVerifyClient;
-    /// use briteverify_rs::types::CreateListResponse;
+    /// use briteverify_rs::types::{CreateListResponse, VerificationRequest};
     /// #
     /// # async fn doc() -> anyhow::Result<()> {
     /// # let client: BriteVerifyClient = BriteVerifyClient::new("YOUR API KEY")?;
     ///
-    /// let list: CreateListResponse = client.create_list(None, false).await?;
+    /// let contacts = <Option<Vec<VerificationRequest>>>::None;
+    /// let list: CreateListResponse = client.create_list(contacts, false).await?;
     ///
     /// println!("New bulk verification list: {list:#?}");
     /// # Ok(())
@@ -2110,7 +2154,7 @@ impl BriteVerifyClient {
     ///
     /// let list: UpdateListResponse = client.update_list("some-list-id", contacts, false).await?;
     ///
-    /// println!("Updated bulk verification list: {lists:#?}");
+    /// println!("Updated bulk verification list: {list:#?}");
     /// # Ok(())
     /// # }
     /// ```

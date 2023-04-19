@@ -9,9 +9,11 @@ use serde_json::Value;
 
 // Crate-Level Imports
 use super::enums::VerificationStatus;
+use crate::errors::BriteVerifyTypeError;
 
 // Conditional Imports
-#[cfg(all(not(doc), any(test, feature = "examples")))]
+#[doc(hidden)]
+#[cfg(any(test, feature = "examples"))]
 pub use self::foundry::*;
 
 // <editor-fold desc="// Request Elements ...">
@@ -81,6 +83,7 @@ pub struct AddressArrayBuilder {
 }
 
 impl Default for AddressArrayBuilder {
+    #[cfg_attr(tarpaulin, no_coverage)]
     fn default() -> Self {
         Self {
             _zip: <Option<String>>::None,
@@ -99,18 +102,18 @@ impl AddressArrayBuilder {
     }
 
     /// Build a `StreetAddressArray` from the configured values
-    pub fn build(self) -> Result<StreetAddressArray> {
+    pub fn build(self) -> Result<StreetAddressArray, BriteVerifyTypeError> {
         if !self.buildable() {
-            anyhow::bail!("Oh no!");
+            Err(BriteVerifyTypeError::UnbuildableAddressArray)
+        } else {
+            Ok(StreetAddressArray::from_values(
+                self._address1.unwrap(),
+                self._address2,
+                self._city.unwrap(),
+                self._state.unwrap(),
+                self._zip.unwrap(),
+            ))
         }
-
-        Ok(StreetAddressArray::from_values(
-            self._address1.unwrap(),
-            self._address2,
-            self._city.unwrap(),
-            self._state.unwrap(),
-            self._zip.unwrap(),
-        ))
     }
 
     /// Determine if a valid `StreetAddressArray` can be
@@ -292,6 +295,7 @@ pub enum VerificationRequest {
 
 impl fmt::Debug for VerificationRequest {
     //noinspection DuplicatedCode
+    #[cfg_attr(tarpaulin, no_coverage)]
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Full(request) => request.fmt(formatter),
@@ -322,7 +326,7 @@ impl VerificationRequest {
         city: Option<Displayable>,
         state: Option<Displayable>,
         zip: Option<Displayable>,
-    ) -> Result<Self> {
+    ) -> Result<Self, BriteVerifyTypeError> {
         Ok(VerificationRequestBuilder::from_values(
             email, phone, address1, address2, city, state, zip,
         )
@@ -331,6 +335,7 @@ impl VerificationRequest {
 }
 
 impl<Displayable: ToString> From<Displayable> for EmailVerificationRequest {
+    #[cfg_attr(tarpaulin, no_coverage)]
     fn from(email: Displayable) -> Self {
         Self {
             email: email.to_string(),
@@ -339,6 +344,7 @@ impl<Displayable: ToString> From<Displayable> for EmailVerificationRequest {
 }
 
 impl<Displayable: ToString> From<Displayable> for PhoneNumberVerificationRequest {
+    #[cfg_attr(tarpaulin, no_coverage)]
     fn from(phone: Displayable) -> Self {
         Self {
             phone: phone.to_string(),
@@ -347,13 +353,14 @@ impl<Displayable: ToString> From<Displayable> for PhoneNumberVerificationRequest
 }
 
 impl From<FullVerificationRequest> for VerificationRequest {
+    #[cfg_attr(tarpaulin, no_coverage)]
     fn from(request: FullVerificationRequest) -> Self {
         Self::Full(request)
     }
 }
 
 impl TryFrom<&'_ str> for VerificationRequest {
-    type Error = crate::errors::BriteVerifyTypeError;
+    type Error = BriteVerifyTypeError;
 
     fn try_from(value: &'_ str) -> Result<Self, Self::Error> {
         if value.contains('@') {
@@ -366,49 +373,56 @@ impl TryFrom<&'_ str> for VerificationRequest {
             return Ok(Self::Phone(PhoneNumberVerificationRequest::from(value)));
         }
 
-        Err(crate::errors::BriteVerifyTypeError::AmbiguousTryFromValue(
+        Err(BriteVerifyTypeError::AmbiguousTryFromValue(
             value.to_string(),
         ))
     }
 }
 
 impl From<EmailVerificationRequest> for VerificationRequest {
+    #[cfg_attr(tarpaulin, no_coverage)]
     fn from(request: EmailVerificationRequest) -> Self {
         Self::Email(request)
     }
 }
 
 impl From<AddressVerificationRequest> for VerificationRequest {
+    #[cfg_attr(tarpaulin, no_coverage)]
     fn from(request: AddressVerificationRequest) -> Self {
         Self::Address(request)
     }
 }
 
 impl From<PhoneNumberVerificationRequest> for VerificationRequest {
+    #[cfg_attr(tarpaulin, no_coverage)]
     fn from(request: PhoneNumberVerificationRequest) -> Self {
         Self::Phone(request)
     }
 }
 
 impl From<EmailAndPhoneVerificationRequest> for VerificationRequest {
+    #[cfg_attr(tarpaulin, no_coverage)]
     fn from(request: EmailAndPhoneVerificationRequest) -> Self {
         Self::EmailAndPhone(request)
     }
 }
 
 impl From<EmailAndAddressVerificationRequest> for VerificationRequest {
+    #[cfg_attr(tarpaulin, no_coverage)]
     fn from(request: EmailAndAddressVerificationRequest) -> Self {
         Self::EmailAndAddress(request)
     }
 }
 
 impl From<PhoneAndAddressVerificationRequest> for VerificationRequest {
+    #[cfg_attr(tarpaulin, no_coverage)]
     fn from(request: PhoneAndAddressVerificationRequest) -> Self {
         Self::PhoneAndAddress(request)
     }
 }
 
 impl From<EmailAndPhoneVerificationRequest> for EmailVerificationRequest {
+    #[cfg_attr(tarpaulin, no_coverage)]
     fn from(request: EmailAndPhoneVerificationRequest) -> Self {
         EmailVerificationRequest {
             email: request.email,
@@ -425,6 +439,7 @@ impl From<EmailAndAddressVerificationRequest> for EmailVerificationRequest {
 }
 
 impl From<EmailAndAddressVerificationRequest> for AddressVerificationRequest {
+    #[cfg_attr(tarpaulin, no_coverage)]
     fn from(request: EmailAndAddressVerificationRequest) -> Self {
         AddressVerificationRequest {
             address: request.address,
@@ -433,6 +448,7 @@ impl From<EmailAndAddressVerificationRequest> for AddressVerificationRequest {
 }
 
 impl From<PhoneAndAddressVerificationRequest> for AddressVerificationRequest {
+    #[cfg_attr(tarpaulin, no_coverage)]
     fn from(request: PhoneAndAddressVerificationRequest) -> Self {
         AddressVerificationRequest {
             address: request.address,
@@ -441,6 +457,7 @@ impl From<PhoneAndAddressVerificationRequest> for AddressVerificationRequest {
 }
 
 impl From<EmailAndPhoneVerificationRequest> for PhoneNumberVerificationRequest {
+    #[cfg_attr(tarpaulin, no_coverage)]
     fn from(request: EmailAndPhoneVerificationRequest) -> Self {
         PhoneNumberVerificationRequest {
             phone: request.phone,
@@ -449,6 +466,7 @@ impl From<EmailAndPhoneVerificationRequest> for PhoneNumberVerificationRequest {
 }
 
 impl From<PhoneAndAddressVerificationRequest> for PhoneNumberVerificationRequest {
+    #[cfg_attr(tarpaulin, no_coverage)]
     fn from(request: PhoneAndAddressVerificationRequest) -> Self {
         PhoneNumberVerificationRequest {
             phone: request.phone,
@@ -465,6 +483,7 @@ pub struct VerificationRequestBuilder {
 }
 
 impl Default for VerificationRequestBuilder {
+    #[cfg_attr(tarpaulin, no_coverage)]
     fn default() -> Self {
         Self {
             _email: <Option<String>>::None,
@@ -482,7 +501,7 @@ impl VerificationRequestBuilder {
 
     /// Build a `VerificationRequest` from the current
     /// builder state
-    pub fn build(self) -> Result<VerificationRequest> {
+    pub fn build(self) -> Result<VerificationRequest, BriteVerifyTypeError> {
         let flags: (bool, bool, bool) = (
             self._email.is_some(),
             self._phone.is_none(),
@@ -524,9 +543,7 @@ impl VerificationRequestBuilder {
                     address: self._address.build()?,
                 },
             )),
-            (false, false, false) => {
-                anyhow::bail!("Oh no")
-            }
+            (false, false, false) => Err(BriteVerifyTypeError::UnbuildableRequest),
         }
     }
 
@@ -926,6 +943,7 @@ pub enum VerificationResponse {
 
 impl fmt::Debug for VerificationResponse {
     //noinspection DuplicatedCode
+    #[cfg_attr(tarpaulin, no_coverage)]
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Full(response) => response.fmt(formatter),
@@ -940,48 +958,56 @@ impl fmt::Debug for VerificationResponse {
 }
 
 impl From<FullVerificationResponse> for VerificationResponse {
+    #[cfg_attr(tarpaulin, no_coverage)]
     fn from(response: FullVerificationResponse) -> Self {
         Self::Full(response)
     }
 }
 
 impl From<EmailVerificationResponse> for VerificationResponse {
+    #[cfg_attr(tarpaulin, no_coverage)]
     fn from(response: EmailVerificationResponse) -> Self {
         Self::Email(response)
     }
 }
 
 impl From<AddressVerificationResponse> for VerificationResponse {
+    #[cfg_attr(tarpaulin, no_coverage)]
     fn from(response: AddressVerificationResponse) -> Self {
         Self::Address(response)
     }
 }
 
 impl From<PhoneNumberVerificationResponse> for VerificationResponse {
+    #[cfg_attr(tarpaulin, no_coverage)]
     fn from(response: PhoneNumberVerificationResponse) -> Self {
         Self::Phone(response)
     }
 }
 
 impl From<EmailAndPhoneVerificationResponse> for VerificationResponse {
+    #[cfg_attr(tarpaulin, no_coverage)]
     fn from(response: EmailAndPhoneVerificationResponse) -> Self {
         Self::EmailAndPhone(response)
     }
 }
 
 impl From<EmailAndAddressVerificationResponse> for VerificationResponse {
+    #[cfg_attr(tarpaulin, no_coverage)]
     fn from(response: EmailAndAddressVerificationResponse) -> Self {
         Self::EmailAndAddress(response)
     }
 }
 
 impl From<PhoneAndAddressVerificationResponse> for VerificationResponse {
+    #[cfg_attr(tarpaulin, no_coverage)]
     fn from(response: PhoneAndAddressVerificationResponse) -> Self {
         Self::PhoneAndAddress(response)
     }
 }
 
 impl From<EmailAndPhoneVerificationResponse> for EmailVerificationResponse {
+    #[cfg_attr(tarpaulin, no_coverage)]
     fn from(response: EmailAndPhoneVerificationResponse) -> Self {
         EmailVerificationResponse {
             email: response.email,
@@ -991,6 +1017,7 @@ impl From<EmailAndPhoneVerificationResponse> for EmailVerificationResponse {
 }
 
 impl From<EmailAndAddressVerificationResponse> for EmailVerificationResponse {
+    #[cfg_attr(tarpaulin, no_coverage)]
     fn from(response: EmailAndAddressVerificationResponse) -> Self {
         EmailVerificationResponse {
             email: response.email,
@@ -1000,6 +1027,7 @@ impl From<EmailAndAddressVerificationResponse> for EmailVerificationResponse {
 }
 
 impl From<EmailAndAddressVerificationResponse> for AddressVerificationResponse {
+    #[cfg_attr(tarpaulin, no_coverage)]
     fn from(response: EmailAndAddressVerificationResponse) -> Self {
         AddressVerificationResponse {
             address: response.address,
@@ -1009,6 +1037,7 @@ impl From<EmailAndAddressVerificationResponse> for AddressVerificationResponse {
 }
 
 impl From<PhoneAndAddressVerificationResponse> for AddressVerificationResponse {
+    #[cfg_attr(tarpaulin, no_coverage)]
     fn from(response: PhoneAndAddressVerificationResponse) -> Self {
         AddressVerificationResponse {
             address: response.address,
@@ -1018,6 +1047,7 @@ impl From<PhoneAndAddressVerificationResponse> for AddressVerificationResponse {
 }
 
 impl From<EmailAndPhoneVerificationResponse> for PhoneNumberVerificationResponse {
+    #[cfg_attr(tarpaulin, no_coverage)]
     fn from(response: EmailAndPhoneVerificationResponse) -> Self {
         PhoneNumberVerificationResponse {
             phone: response.phone,
@@ -1027,6 +1057,7 @@ impl From<EmailAndPhoneVerificationResponse> for PhoneNumberVerificationResponse
 }
 
 impl From<PhoneAndAddressVerificationResponse> for PhoneNumberVerificationResponse {
+    #[cfg_attr(tarpaulin, no_coverage)]
     fn from(response: PhoneAndAddressVerificationResponse) -> Self {
         PhoneNumberVerificationResponse {
             phone: response.phone,
@@ -1039,7 +1070,9 @@ impl From<PhoneAndAddressVerificationResponse> for PhoneNumberVerificationRespon
 
 // <editor-fold desc="// Test Helpers & Factory Implementations ...">
 
-#[cfg(all(not(doc), any(test, feature = "examples")))]
+#[doc(hidden)]
+#[cfg_attr(tarpaulin, no_coverage)]
+#[cfg(any(test, feature = "examples"))]
 mod foundry {
     // Third Party Imports
     use warlocks_cauldron as wc;
@@ -1048,6 +1081,7 @@ mod foundry {
     use crate::utils::{RandomizableEnum, RandomizableStruct};
 
     impl super::AddressArrayBuilder {
+        #[cfg_attr(tarpaulin, no_coverage)]
         /// Randomly generate a complete `AddressArray`
         pub fn random() -> super::StreetAddressArray {
             Self::new()
@@ -1060,6 +1094,7 @@ mod foundry {
                 .unwrap()
         }
 
+        #[cfg_attr(tarpaulin, no_coverage)]
         /// Generate a random `zip` value
         /// for the `AddressArray` being built
         pub fn random_zip(mut self) -> Self {
@@ -1067,6 +1102,7 @@ mod foundry {
             self
         }
 
+        #[cfg_attr(tarpaulin, no_coverage)]
         /// Generate a random `city` value
         /// for the `AddressArray` being built
         pub fn random_city(mut self) -> Self {
@@ -1074,6 +1110,7 @@ mod foundry {
             self
         }
 
+        #[cfg_attr(tarpaulin, no_coverage)]
         /// Generate a random `state` value
         /// for the `AddressArray` being built
         pub fn random_state(mut self) -> Self {
@@ -1081,6 +1118,7 @@ mod foundry {
             self
         }
 
+        #[cfg_attr(tarpaulin, no_coverage)]
         /// Generate a random `address1` value
         /// for the `AddressArray` being built
         pub fn random_address1(mut self) -> Self {
@@ -1088,6 +1126,7 @@ mod foundry {
             self
         }
 
+        #[cfg_attr(tarpaulin, no_coverage)]
         /// Generate a random `address2` value
         /// for the `AddressArray` being built
         pub fn random_address2(mut self) -> Self {
@@ -1097,6 +1136,7 @@ mod foundry {
     }
 
     impl super::VerificationRequestBuilder {
+        #[cfg_attr(tarpaulin, no_coverage)]
         /// Generate a random "email" value for
         /// the `VerificationRequest` being built
         pub fn random_email(mut self) -> Self {
@@ -1104,6 +1144,7 @@ mod foundry {
             self
         }
 
+        #[cfg_attr(tarpaulin, no_coverage)]
         /// Generate a random "phone" value for
         /// the `VerificationRequest` being built
         pub fn random_phone(mut self) -> Self {
@@ -1111,6 +1152,7 @@ mod foundry {
             self
         }
 
+        #[cfg_attr(tarpaulin, no_coverage)]
         /// Generate a random `address.zip` value
         /// for the `VerificationRequest` being built
         pub fn random_zip(mut self) -> Self {
@@ -1118,6 +1160,7 @@ mod foundry {
             self
         }
 
+        #[cfg_attr(tarpaulin, no_coverage)]
         /// Generate a random `address.city` value
         /// for the `VerificationRequest` being built
         pub fn random_city(mut self) -> Self {
@@ -1125,6 +1168,7 @@ mod foundry {
             self
         }
 
+        #[cfg_attr(tarpaulin, no_coverage)]
         /// Generate a random `address.state` value
         /// for the `VerificationRequest` being built
         pub fn random_state(mut self) -> Self {
@@ -1132,6 +1176,7 @@ mod foundry {
             self
         }
 
+        #[cfg_attr(tarpaulin, no_coverage)]
         /// Generate random values for all `address`
         /// fields of the `VerificationRequest` being built
         pub fn random_address(mut self) -> Self {
@@ -1145,6 +1190,7 @@ mod foundry {
             self
         }
 
+        #[cfg_attr(tarpaulin, no_coverage)]
         /// Generate a random `address.address1` value
         /// for the `VerificationRequest` being built
         pub fn random_address1(mut self) -> Self {
@@ -1152,6 +1198,7 @@ mod foundry {
             self
         }
 
+        #[cfg_attr(tarpaulin, no_coverage)]
         /// Generate a random `address.address2` value
         /// for the `VerificationRequest` being built
         pub fn random_address2(mut self) -> Self {
@@ -1159,27 +1206,32 @@ mod foundry {
             self
         }
 
+        #[cfg_attr(tarpaulin, no_coverage)]
         /// Generate a "complete" [`VerificationRequest`](super::VerificationRequest)
         /// with randomized values for all fields
         pub fn random_full_request() -> super::VerificationRequest {
             super::VerificationRequest::Full(super::FullVerificationRequest::random())
         }
 
+        #[cfg_attr(tarpaulin, no_coverage)]
         /// Generate a random email-only [`VerificationRequest`](super::VerificationRequest)
         pub fn random_email_request() -> super::VerificationRequest {
             super::VerificationRequest::Email(super::EmailVerificationRequest::random())
         }
 
+        #[cfg_attr(tarpaulin, no_coverage)]
         /// Generate a random phone-only [`VerificationRequest`](super::VerificationRequest)
         pub fn random_phone_request() -> super::VerificationRequest {
             super::VerificationRequest::Phone(super::PhoneNumberVerificationRequest::random())
         }
 
+        #[cfg_attr(tarpaulin, no_coverage)]
         /// Generate a random address-only [`VerificationRequest`](super::VerificationRequest)
         pub fn random_address_request() -> super::VerificationRequest {
             super::VerificationRequest::Address(super::AddressVerificationRequest::random())
         }
 
+        #[cfg_attr(tarpaulin, no_coverage)]
         /// Generate a [`VerificationRequest`](super::VerificationRequest)
         /// with randomized values for its `email` and `phone` fields
         pub fn random_email_and_phone_request() -> super::VerificationRequest {
@@ -1188,6 +1240,7 @@ mod foundry {
             )
         }
 
+        #[cfg_attr(tarpaulin, no_coverage)]
         /// Generate a [`VerificationRequest`](super::VerificationRequest)
         /// with randomized values for its `phone` and `address` fields
         pub fn random_phone_and_address_request() -> super::VerificationRequest {
@@ -1196,6 +1249,7 @@ mod foundry {
             )
         }
 
+        #[cfg_attr(tarpaulin, no_coverage)]
         /// Generate a [`VerificationRequest`](super::VerificationRequest)
         /// with randomized values for its `email` and `address` fields
         pub fn random_email_and_address_request() -> super::VerificationRequest {
@@ -1206,13 +1260,14 @@ mod foundry {
     }
 
     impl RandomizableStruct for super::StreetAddressArray {
-        /// Randomly generate an `StreetAddressArray` instance
+        #[cfg_attr(tarpaulin, no_coverage)]
         fn random() -> Self {
             super::AddressArrayBuilder::random()
         }
     }
 
     impl RandomizableStruct for super::VerificationRequest {
+        #[cfg_attr(tarpaulin, no_coverage)]
         fn random() -> Self {
             let req_type = wc::Numeric::number(0u8, 10u8);
 
@@ -1229,22 +1284,25 @@ mod foundry {
     }
 
     impl RandomizableStruct for super::EmailVerificationArray {
+        #[cfg_attr(tarpaulin, no_coverage)]
         fn random() -> Self {
             super::EmailVerificationRequest::random().into()
         }
     }
 
     impl RandomizableStruct for super::FullVerificationRequest {
+        #[cfg_attr(tarpaulin, no_coverage)]
         fn random() -> Self {
             Self {
                 email: crate::utils::random_email(),
-                phone: wc::Person(&wc::Locale::EN).telephone(None),
+                phone: crate::utils::FAKE.person.telephone(None),
                 address: super::StreetAddressArray::random(),
             }
         }
     }
 
     impl RandomizableStruct for super::EmailVerificationRequest {
+        #[cfg_attr(tarpaulin, no_coverage)]
         fn random() -> Self {
             Self {
                 email: crate::utils::random_email(),
@@ -1253,12 +1311,14 @@ mod foundry {
     }
 
     impl RandomizableStruct for super::AddressVerificationArray {
+        #[cfg_attr(tarpaulin, no_coverage)]
         fn random() -> Self {
             super::AddressVerificationRequest::random().into()
         }
     }
 
     impl RandomizableStruct for super::AddressVerificationRequest {
+        #[cfg_attr(tarpaulin, no_coverage)]
         fn random() -> Self {
             Self {
                 address: super::StreetAddressArray::random(),
@@ -1267,29 +1327,33 @@ mod foundry {
     }
 
     impl RandomizableStruct for super::PhoneNumberVerificationArray {
+        #[cfg_attr(tarpaulin, no_coverage)]
         fn random() -> Self {
             super::PhoneNumberVerificationRequest::random().into()
         }
     }
 
     impl RandomizableStruct for super::PhoneNumberVerificationRequest {
+        #[cfg_attr(tarpaulin, no_coverage)]
         fn random() -> Self {
             Self {
-                phone: wc::Person(&wc::Locale::EN).telephone(None),
+                phone: crate::utils::FAKE.person.telephone(None),
             }
         }
     }
 
     impl RandomizableStruct for super::EmailAndPhoneVerificationRequest {
+        #[cfg_attr(tarpaulin, no_coverage)]
         fn random() -> Self {
             Self {
                 email: crate::utils::random_email(),
-                phone: wc::Person(&wc::Locale::EN).telephone(None),
+                phone: crate::utils::FAKE.person.telephone(None),
             }
         }
     }
 
     impl RandomizableStruct for super::EmailAndAddressVerificationRequest {
+        #[cfg_attr(tarpaulin, no_coverage)]
         fn random() -> Self {
             Self {
                 email: crate::utils::random_email(),
@@ -1299,15 +1363,17 @@ mod foundry {
     }
 
     impl RandomizableStruct for super::PhoneAndAddressVerificationRequest {
+        #[cfg_attr(tarpaulin, no_coverage)]
         fn random() -> Self {
             Self {
-                phone: wc::Person(&wc::Locale::EN).telephone(None),
+                phone: crate::utils::FAKE.person.telephone(None),
                 address: super::StreetAddressArray::random(),
             }
         }
     }
 
     impl From<super::EmailVerificationRequest> for super::EmailVerificationArray {
+        #[cfg_attr(tarpaulin, no_coverage)]
         fn from(request: super::EmailVerificationRequest) -> Self {
             let mut parts = request.email.split("@");
 
@@ -1324,6 +1390,7 @@ mod foundry {
     }
 
     impl From<super::AddressVerificationRequest> for super::AddressVerificationArray {
+        #[cfg_attr(tarpaulin, no_coverage)]
         fn from(request: super::AddressVerificationRequest) -> Self {
             let (address1, corrected) = match request.address.address2 {
                 Some(value) => (format!("{} {}", request.address.address1, value), true),
@@ -1345,12 +1412,13 @@ mod foundry {
     }
 
     impl From<super::PhoneNumberVerificationRequest> for super::PhoneNumberVerificationArray {
+        #[cfg_attr(tarpaulin, no_coverage)]
         fn from(request: super::PhoneNumberVerificationRequest) -> Self {
-            let types = vec!["land", "mobile"];
+            const TYPES: [&'static str; 2] = ["land", "mobile"];
             Self {
                 number: request.phone,
                 status: super::VerificationStatus::random(),
-                service_type: wc::Choice::get(types.iter()).to_string(),
+                service_type: wc::Choice::get(TYPES.iter()).to_string(),
                 phone_location: None,
                 errors: Vec::new(),
             }
