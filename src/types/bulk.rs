@@ -600,7 +600,6 @@ mod foundry {
             };
 
             let responses = (0..count)
-                .into_iter()
                 .map(|_| super::VerificationListState::random())
                 .collect::<Vec<super::VerificationListState>>();
 
@@ -756,7 +755,7 @@ mod foundry {
 
                     instance.results_path = Some(super::Uri::try_from(export_url).unwrap());
                     instance.expiration_date =
-                        (&instance.created_at).with_day((&instance).created_at.day() + 7);
+                        instance.created_at.with_day(instance.created_at.day() + 7);
                 }
                 super::BatchState::Terminated => {
                     let timestamp =
@@ -777,7 +776,6 @@ mod foundry {
                     let count = wc::Numeric::number(1u8, 5u8);
 
                     instance.errors = (0..count)
-                        .into_iter()
                         .map(|_| super::VerificationListErrorMessage::random())
                         .collect::<Vec<super::VerificationListErrorMessage>>();
                 }
@@ -792,7 +790,6 @@ mod foundry {
         #[cfg_attr(tarpaulin, no_coverage)]
         fn random() -> Self {
             let contacts = (0..100)
-                .into_iter()
                 .map(|_| super::VerificationRequest::random())
                 .collect::<Vec<super::VerificationRequest>>();
 
@@ -826,7 +823,6 @@ mod foundry {
                 status: super::BatchCreationStatus::random(),
                 page_count: wc::Numeric::number(1u64, 100u64),
                 results: (0..result_count)
-                    .into_iter()
                     .map(|_| super::BulkVerificationResult::random())
                     .collect::<Vec<super::BulkVerificationResult>>(),
             }
@@ -968,7 +964,11 @@ mod foundry {
 
             match &instance.status {
                 super::VerificationStatus::Valid => {
-                    instance.phone = instance.phone.chars().filter(|c| c.is_digit(10)).collect();
+                    instance.phone = instance
+                        .phone
+                        .chars()
+                        .filter(char::is_ascii_digit)
+                        .collect();
                     if wc::Choice::prob(0.75) {
                         let service_type: &str = wc::Choice::get(vec!["land", "mobile"].iter());
                         instance.service_type = Some(service_type.to_string());

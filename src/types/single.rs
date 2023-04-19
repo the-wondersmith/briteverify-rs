@@ -56,11 +56,7 @@ impl StreetAddressArray {
             state.to_string(),
             zip.to_string(),
         );
-        let address2 = if let Some(value) = address2 {
-            Some(value.to_string())
-        } else {
-            None
-        };
+        let address2 = address2.map(|value| value.to_string());
 
         Self {
             address1,
@@ -73,26 +69,13 @@ impl StreetAddressArray {
 }
 
 /// Incremental builder for `StreetAddressArray`s
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct AddressArrayBuilder {
     _address1: Option<String>,
     _address2: Option<String>,
     _city: Option<String>,
     _state: Option<String>,
     _zip: Option<String>,
-}
-
-impl Default for AddressArrayBuilder {
-    #[cfg_attr(tarpaulin, no_coverage)]
-    fn default() -> Self {
-        Self {
-            _zip: <Option<String>>::None,
-            _city: <Option<String>>::None,
-            _state: <Option<String>>::None,
-            _address1: <Option<String>>::None,
-            _address2: <Option<String>>::None,
-        }
-    }
 }
 
 impl AddressArrayBuilder {
@@ -327,10 +310,8 @@ impl VerificationRequest {
         state: Option<Displayable>,
         zip: Option<Displayable>,
     ) -> Result<Self, BriteVerifyTypeError> {
-        Ok(VerificationRequestBuilder::from_values(
-            email, phone, address1, address2, city, state, zip,
-        )
-        .build()?)
+        VerificationRequestBuilder::from_values(email, phone, address1, address2, city, state, zip)
+            .build()
     }
 }
 
@@ -475,22 +456,11 @@ impl From<PhoneAndAddressVerificationRequest> for PhoneNumberVerificationRequest
 }
 
 /// Incremental builder for `VerificationRequest`s
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct VerificationRequestBuilder {
     _email: Option<String>,
     _phone: Option<String>,
     _address: AddressArrayBuilder,
-}
-
-impl Default for VerificationRequestBuilder {
-    #[cfg_attr(tarpaulin, no_coverage)]
-    fn default() -> Self {
-        Self {
-            _email: <Option<String>>::None,
-            _phone: <Option<String>>::None,
-            _address: AddressArrayBuilder::default(),
-        }
-    }
 }
 
 impl VerificationRequestBuilder {
@@ -510,16 +480,16 @@ impl VerificationRequestBuilder {
 
         match flags {
             (true, true, true) => Ok(VerificationRequest::Full(FullVerificationRequest {
-                email: self._email.unwrap().to_string(),
-                phone: self._phone.unwrap().to_string(),
+                email: self._email.unwrap(),
+                phone: self._phone.unwrap(),
                 address: self._address.build()?,
             })),
             (true, false, false) => Ok(VerificationRequest::Email(EmailVerificationRequest {
-                email: self._email.unwrap().to_string(),
+                email: self._email.unwrap(),
             })),
             (false, true, false) => {
                 Ok(VerificationRequest::Phone(PhoneNumberVerificationRequest {
-                    phone: self._phone.unwrap().to_string(),
+                    phone: self._phone.unwrap(),
                 }))
             }
             (false, false, true) => Ok(VerificationRequest::Address(AddressVerificationRequest {
@@ -527,19 +497,19 @@ impl VerificationRequestBuilder {
             })),
             (true, true, false) => Ok(VerificationRequest::EmailAndPhone(
                 EmailAndPhoneVerificationRequest {
-                    email: self._email.unwrap().to_string(),
-                    phone: self._phone.unwrap().to_string(),
+                    email: self._email.unwrap(),
+                    phone: self._phone.unwrap(),
                 },
             )),
             (true, false, true) => Ok(VerificationRequest::EmailAndAddress(
                 EmailAndAddressVerificationRequest {
-                    email: self._email.unwrap().to_string(),
+                    email: self._email.unwrap(),
                     address: self._address.build()?,
                 },
             )),
             (false, true, true) => Ok(VerificationRequest::PhoneAndAddress(
                 PhoneAndAddressVerificationRequest {
-                    phone: self._phone.unwrap().to_string(),
+                    phone: self._phone.unwrap(),
                     address: self._address.build()?,
                 },
             )),
@@ -1375,11 +1345,11 @@ mod foundry {
     impl From<super::EmailVerificationRequest> for super::EmailVerificationArray {
         #[cfg_attr(tarpaulin, no_coverage)]
         fn from(request: super::EmailVerificationRequest) -> Self {
-            let mut parts = request.email.split("@");
+            let mut parts = request.email.split('@');
 
             Self {
                 address: request.email.clone(),
-                account: parts.nth(0).unwrap().to_string(),
+                account: parts.next().unwrap().to_string(),
                 domain: parts.nth(1).unwrap().to_string(),
                 status: super::VerificationStatus::random(),
                 connected: None,
@@ -1414,7 +1384,7 @@ mod foundry {
     impl From<super::PhoneNumberVerificationRequest> for super::PhoneNumberVerificationArray {
         #[cfg_attr(tarpaulin, no_coverage)]
         fn from(request: super::PhoneNumberVerificationRequest) -> Self {
-            const TYPES: [&'static str; 2] = ["land", "mobile"];
+            const TYPES: [&str; 2] = ["land", "mobile"];
             Self {
                 number: request.phone,
                 status: super::VerificationStatus::random(),

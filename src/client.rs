@@ -19,9 +19,9 @@ use crate::{errors, types};
 
 // <editor-fold desc="// Constants ...">
 
-static V1_API_BASE_URL: &'static str = "https://bpi.briteverify.com/api/v1";
-static V3_API_BASE_URL: &'static str = "https://bulk-api.briteverify.com/api/v3";
-static DEFAULT_LOG_FILTER: &'static str = "briteverify_rs=debug,reqwest=info";
+static V1_API_BASE_URL: &str = "https://bpi.briteverify.com/api/v1";
+static V3_API_BASE_URL: &str = "https://bulk-api.briteverify.com/api/v3";
+static DEFAULT_LOG_FILTER: &str = "briteverify_rs=debug,reqwest=info";
 
 // </editor-fold desc="// Constants ...">
 
@@ -144,12 +144,12 @@ impl BriteVerifyClientBuilder {
                         .context("Could not create a usable `reqwest` client")?,
                     retry_enabled: self.retry_enabled,
                     v1_base_url: if let Some(value) = self.v1_base_url {
-                        value.to_string().strip_suffix("/").unwrap().to_string()
+                        value.to_string().strip_suffix('/').unwrap().to_string()
                     } else {
                         V1_API_BASE_URL.to_string()
                     },
                     v3_base_url: if let Some(value) = self.v3_base_url {
-                        value.to_string().strip_suffix("/").unwrap().to_string()
+                        value.to_string().strip_suffix('/').unwrap().to_string()
                     } else {
                         V3_API_BASE_URL.to_string()
                     },
@@ -1499,14 +1499,14 @@ impl BriteVerifyClient {
                         let retry_after = 1 + response
                             .headers()
                             .get("retry-after")
-                            .and_then(|value| Some(value.to_str().unwrap_or("60")))
+                            .map(|value| value.to_str().unwrap_or("60"))
                             .unwrap_or("60")
                             .parse::<u64>()
                             .unwrap_or(60);
 
                         tracing::warn!(
                             "Request to '{}' responded 429, waiting {} seconds before retry...",
-                            (&request).url(),
+                            request.url(),
                             &retry_after
                         );
 
@@ -1519,6 +1519,7 @@ impl BriteVerifyClient {
 
     /// [internal-implementation]
     /// Actually perform a single-transaction verification
+    #[allow(clippy::too_many_arguments)]
     async fn _full_verify<Displayable: ToString>(
         &self,
         email: Option<Displayable>,
@@ -1703,6 +1704,7 @@ impl BriteVerifyClient {
     /// # Ok(())
     /// # }
     /// ```
+    #[allow(clippy::too_many_arguments)]
     pub async fn verify_contact<Displayable: ToString>(
         &self,
         email: Displayable,

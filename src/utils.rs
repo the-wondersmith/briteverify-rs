@@ -59,7 +59,7 @@ pub(crate) fn empty_string_is_none<'de, D: serde::Deserializer<'de>>(
             if value.trim().is_empty() {
                 Ok(None)
             } else {
-                Ok(Some(value.to_string()))
+                Ok(Some(value))
             }
         }
     }
@@ -164,10 +164,7 @@ pub(crate) fn deserialize_maybe_timestamp<'de, D: serde::Deserializer<'de>>(
 /// `directive` values when sending bulk verification
 /// requests to the BriteVerify API.
 pub(crate) fn is_unknown_list_directive(directive: &BulkListDirective) -> bool {
-    match directive {
-        BulkListDirective::Unknown => true,
-        _ => false,
-    }
+    matches!(directive, BulkListDirective::Unknown)
 }
 
 /// Deserializer implementation for enabling `serde`
@@ -178,12 +175,12 @@ pub(crate) fn deserialize_boolean<'de, D: serde::Deserializer<'de>>(
 ) -> Result<bool, D::Error> {
     let value = <Value as serde::Deserialize>::deserialize(deserializer)?;
 
-    if (&value).is_boolean() {
+    if value.is_boolean() {
         return Ok(value.as_bool().unwrap());
     }
 
     let value = value.to_string();
-    let trimmed = (&value)
+    let trimmed = value
         .strip_prefix('"')
         .unwrap_or(&value)
         .strip_suffix('"')
@@ -367,7 +364,7 @@ mod tests {
     // Crate-Level Dependencies
     use super::{ChronoResult, DateTime, Duration, Uri, Utc};
 
-    const TIMESTAMP: &'static str = "01-11-2023 4:45 pm";
+    const TIMESTAMP: &str = "01-11-2023 4:45 pm";
     static RECENT_DATETIMES: Lazy<Vec<DateTime<Utc>>> = Lazy::new(|| {
         let start_date = super::within_the_last_week()
             .with_second(0)
@@ -551,7 +548,7 @@ mod tests {
     /// supplied value is a BriteVerify-formatted
     /// timestamp string (i.e."%m-%d-%Y %I:%M %P")
     #[rstest]
-    fn test_valid_bv_timestamp(recent_datetimes: &Vec<DateTime<Utc>>) -> Result<()> {
+    fn test_valid_bv_timestamp(recent_datetimes: &[DateTime<Utc>]) -> Result<()> {
         for value in recent_datetimes.iter() {
             let parsed =
                 match super::bv_timestamp_to_dt(value.format("%m-%d-%Y %I:%M %P").to_string()) {
@@ -572,7 +569,7 @@ mod tests {
     /// supplied value is not a BriteVerify-formatted
     /// timestamp string
     #[rstest]
-    fn test_invalid_bv_timestamp(recent_datetimes: &Vec<DateTime<Utc>>) -> () {
+    fn test_invalid_bv_timestamp(recent_datetimes: &[DateTime<Utc>]) -> () {
         for value in recent_datetimes.iter() {
             let parsed = super::bv_timestamp_to_dt(value.to_rfc2822());
             assert_eq!(parsed, ChronoResult::None);
