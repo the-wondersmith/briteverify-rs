@@ -98,7 +98,6 @@ jobs:
         with:
           command: test
           args: >-
-            --offline
             --profile dev
             --color always
             --package briteverify-rs
@@ -109,7 +108,6 @@ jobs:
         with:
           command: tarpaulin
           args: >-
-            --offline
             --out Stdout
             --profile dev
             --engine auto
