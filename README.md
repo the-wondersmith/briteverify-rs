@@ -33,11 +33,11 @@ println!("{response:#?}");
 - Easy-to-use API that follows Rust conventions
 
 ---
-- <span id="first-note">**1:**</span> `briteverify-rs` makes a best-effort attempt to stay current with
+- <span id="first-note" style="font-weight: bold">1:</span> `briteverify-rs` makes a best-effort attempt to stay current with
    the BriteVerify API, but is ultimately maintained independently.
    Best-effort means that no guarantees are made, but PRs are always
    accepted.
-- <span id="second-note">**2:**</span> `briteverify-rs` currently implements support for the `v3` bulk
+- <span id="second-note" style="font-weight: bold">2:</span> `briteverify-rs` currently implements support for the `v3` bulk
    endpoints, with no plans to add support for legacy or deprecated
    endpoints (namely the `v2` endpoints in this case).
 ---

@@ -1,0 +1,119 @@
+# yamllint disable rule:line-length
+---
+name: "Run Tests 🧪 "
+
+# yamllint disable-line rule:truthy
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch, tag, or commit ref to run against
+        required: true
+        type: string
+        default: main
+  workflow_call:
+    inputs:
+      ref:
+        description: Branch, tag, or commit ref to run against
+        required: true
+        type: string
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check:
+    # if: inputs.ref
+    name: " ⚗️"
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rust:
+          - beta
+          - stable
+          - nightly
+    steps:
+      - name: " restore cached toolchain"
+        id: restore-cached-toolchain
+        uses: actions/cache/restore@v3
+        with:
+          path: |
+            /root/.cargo
+          key: ${{ runner.os }}-toolchain
+
+      - name: " toolchain"
+        id: install-toolchain
+        uses: actions-rs/toolchain@v1
+        if: steps.restore-cached-toolchain.outputs.cache-hit != 'true'
+        with:
+          profile: minimal
+          toolchain: ${{ matrix.rust }}
+          override: true
+          components: rustfmt,clippy
+
+      - name: " ..."
+        id: install-tarpaulin
+        uses: actions-rs/cargo@v1
+        if: steps.restore-cached-toolchain.outputs.cache-hit != 'true'
+        with:
+          command: install
+          args: >-
+            cargo-tarpaulin
+
+      - name: " cache toolchain"
+        id: cache-primes-save
+        uses: actions/cache/save@v3
+        if: steps.restore-cached-toolchain.outputs.cache-hit != 'true'
+        with:
+          path: |
+            /root/.cargo
+          key: ${{ steps.restore-cached-toolchain.outputs.cache-toolchain }}
+
+      - name: " checkout"
+        uses: actions/checkout@v2
+
+      - name: " format"
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: >-
+            --all -- --check
+
+      - name: " clippy"
+        uses: actions-rs/cargo@v1
+        with:
+          command: clippy
+          args: >-
+            -- -D warnings
+
+      - name: " tests"
+        uses: actions-rs/cargo@v1
+        if: ${{ matrix.rust != 'nightly' }}
+        with:
+          command: test
+          args: >-
+            --profile dev
+            --color always
+            --package briteverify-rs
+
+      - name: " tarpaulin"
+        uses: actions-rs/cargo@v1
+        if: ${{ matrix.rust == 'nightly' }}
+        with:
+          command: tarpaulin
+          args: >-
+            --out Stdout
+            --profile dev
+            --engine auto
+            --force-clean
+            --no-dead-code
+            --no-fail-fast
+            --color always
+            --packages briteverify-rs
+            --coveralls ${{ secrets.COVERALLS_REPO_TOKEN }}
