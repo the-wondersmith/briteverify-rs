@@ -92,6 +92,17 @@ jobs:
           args: >-
             -- -D warnings
 
+      - name: " tests"
+        uses: actions-rs/cargo@v1
+        if: ${{ matrix.rust != 'nightly' }}
+        with:
+          command: test
+          args: >-
+            --offline
+            --profile dev
+            --color always
+            --package briteverify-rs
+
       - name: " tarpaulin"
         uses: actions-rs/cargo@v1
         if: ${{ matrix.rust == 'nightly' }}
