@@ -1,5 +1,7 @@
 # briteverify-rs
 
+[![Coverage Status](https://coveralls.io/repos/github/the-wondersmith/briteverify-rs/badge.svg?branch=main)](https://coveralls.io/github/the-wondersmith/briteverify-rs?branch=main)
+
 `briteverify-rs` provides a type-safe, ergonomic client for
 the [BriteVerify API](https://docs.briteverify.com/) based on
 the popular [reqwest](https://docs.rs/reqwest/latest/reqwest/)
