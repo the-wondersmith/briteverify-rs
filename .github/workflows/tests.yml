@@ -1,6 +1,6 @@
 # yamllint disable rule:line-length
 ---
-name: "Run Tests 🧪 "
+name: " Tests 🧪 "
 
 # yamllint disable-line rule:truthy
 on:

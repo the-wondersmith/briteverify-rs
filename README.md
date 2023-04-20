@@ -1,6 +1,9 @@
 # briteverify-rs
 
-[![Coverage Status](https://coveralls.io/repos/github/the-wondersmith/briteverify-rs/badge.svg?branch=main)](https://coveralls.io/github/the-wondersmith/briteverify-rs?branch=main)
+[![crate](https://img.shields.io/crates/v/briteverify-rs.svg)](https://crates.io/crates/briteverify-rs)
+[![documentation](https://docs.rs/briteverify-rs/badge.svg)](https://docs.rs/briteverify-rs)
+[![tests](https://github.com/the-wondersmith/briteverify-rs/actions/workflows/tests.yml/badge.svg)](https://github.com/the-wondersmith/briteverify-rs/actions)
+[![coverage](https://coveralls.io/repos/github/the-wondersmith/briteverify-rs/badge.svg?branch=main)](https://coveralls.io/github/the-wondersmith/briteverify-rs?branch=main)
 
 `briteverify-rs` provides a type-safe, ergonomic client for
 the [BriteVerify API](https://docs.briteverify.com/) based on
