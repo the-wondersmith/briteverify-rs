@@ -1,6 +1,10 @@
-.cargo/
+.secrets
+.actrc
 .idea/
+.cargo/
 target/
+.secrets
+*.profraw
 src/main.rs
 **/scratch.*
 **/scratch*.*

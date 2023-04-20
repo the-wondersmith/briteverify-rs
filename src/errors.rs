@@ -29,6 +29,9 @@ pub enum BriteVerifyClientError {
     /// a [`BriteVerifyClient`][crate::BriteVerifyClient] instance
     #[error(transparent)]
     InvalidBaseUrl(#[from] http::uri::InvalidUri),
+    /// A usable request could not be created
+    #[error("Unusable request")]
+    UnusableRequest(#[from] BriteVerifyTypeError),
     /// The BriteVerify API returned an unusable response
     /// (based on HTTP status code)
     #[error("Unusable (non-2xx) response")]
@@ -42,6 +45,12 @@ pub enum BriteVerifyClientError {
 /// `BriteVerifyClient`-recognized request
 #[derive(Debug, Error)]
 pub enum BriteVerifyTypeError {
+    /// The builder state is incomplete
+    #[error("Current builder state cannot be used to construct a valid `VerificationRequest`")]
+    UnbuildableRequest,
+    /// The builder state is incomplete
+    #[error("Current builder state cannot be used to construct a valid `StreetAddressArray`")]
+    UnbuildableAddressArray,
     /// The value cannot be unambiguously
     /// resolved to a known request type
     #[error(
