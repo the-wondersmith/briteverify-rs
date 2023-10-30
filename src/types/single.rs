@@ -1,31 +1,37 @@
 //! ## BriteVerify Real-time Single Transaction API Types ([ref](https://docs.briteverify.com/#79e00732-b734-4308-ac7f-820d62dde01f))
 ///
 // Standard Library Imports
-use std::{fmt, time::Duration};
+use std::time::Duration;
 
 // Third Party Imports
 use anyhow::Result;
 use serde_json::Value;
 
 // Crate-Level Imports
-use super::enums::VerificationStatus;
+use super::enums::{VerificationError, VerificationStatus};
 use crate::errors::BriteVerifyTypeError;
 
 // Conditional Imports
+#[cfg(test)]
 #[doc(hidden)]
-#[cfg(any(test, feature = "examples"))]
+#[allow(unused_imports)]
 pub use self::foundry::*;
 
 // <editor-fold desc="// Request Elements ...">
 
 /// A standardized representation of a street address
+#[cfg_attr(any(test, tarpaulin, feature = "ci"), derive(Clone))]
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct StreetAddressArray {
     /// The address's street number and name
     pub address1: String,
     /// Additional / supplemental delivery information
     /// (e.g. apartment, suite, or  P.O. box number)
-    #[serde(deserialize_with = "crate::utils::empty_string_is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::utils::empty_string_is_none"
+    )]
     pub address2: Option<String>,
     /// The address's city or town
     pub city: String,
@@ -87,7 +93,9 @@ impl AddressArrayBuilder {
     /// Build a `StreetAddressArray` from the configured values
     pub fn build(self) -> Result<StreetAddressArray, BriteVerifyTypeError> {
         if !self.buildable() {
-            Err(BriteVerifyTypeError::UnbuildableAddressArray)
+            Err(BriteVerifyTypeError::UnbuildableAddressArray(Box::new(
+                self,
+            )))
         } else {
             Ok(StreetAddressArray::from_values(
                 self._address1.unwrap(),
@@ -102,10 +110,21 @@ impl AddressArrayBuilder {
     /// Determine if a valid `StreetAddressArray` can be
     /// constructed from the current builder state
     pub fn buildable(&self) -> bool {
-        self._address1.is_some()
-            && self._city.is_some()
-            && self._state.is_some()
-            && self._zip.is_some()
+        self._address1
+            .as_ref()
+            .is_some_and(|value| !value.trim().is_empty())
+            && self
+                ._city
+                .as_ref()
+                .is_some_and(|value| !value.trim().is_empty())
+            && self
+                ._state
+                .as_ref()
+                .is_some_and(|value| !value.trim().is_empty())
+            && self
+                ._zip
+                .as_ref()
+                .is_some_and(|value| !value.trim().is_empty())
     }
 
     /// Set the "zip" value of the
@@ -145,12 +164,18 @@ impl AddressArrayBuilder {
 
     /// Create a new `StreetAddressArray` instance
     /// pre-populated with the supplied argument values
-    pub fn from_values<Displayable: ToString>(
-        address1: Option<Displayable>,
-        address2: Option<Displayable>,
-        city: Option<Displayable>,
-        state: Option<Displayable>,
-        zip: Option<Displayable>,
+    pub fn from_values<
+        AddressLine1: ToString,
+        AddressLine2: ToString,
+        CityName: ToString,
+        StateNameOrAbbr: ToString,
+        ZipCode: ToString,
+    >(
+        address1: Option<AddressLine1>,
+        address2: Option<AddressLine2>,
+        city: Option<CityName>,
+        state: Option<StateNameOrAbbr>,
+        zip: Option<ZipCode>,
     ) -> Self {
         let mut instance = Self::new();
 
@@ -178,165 +203,87 @@ impl AddressArrayBuilder {
     }
 }
 
+#[cfg(any(test, tarpaulin, feature = "ci"))]
+impl PartialEq for StreetAddressArray {
+    fn eq(&self, other: &Self) -> bool {
+        if self.address2.is_none() != other.address2.is_none() {
+            return false;
+        }
+
+        let (self_addr2, other_addr2) = (
+            self.address2
+                .as_ref()
+                .map_or(String::new(), |val| val.to_string()),
+            other
+                .address2
+                .as_ref()
+                .map_or(String::new(), |val| val.to_string()),
+        );
+
+        crate::utils::caseless_eq(&self.address1, &other.address1)
+            && crate::utils::caseless_eq(&self_addr2, &other_addr2)
+            && crate::utils::caseless_eq(&self.city, &other.city)
+            && crate::utils::caseless_eq(&self.state, &other.state)
+            && crate::utils::caseless_eq(&self.zip, &other.zip)
+    }
+}
+
 // </editor-fold desc="// Request Elements ...">
 
 // <editor-fold desc="// Single-Transaction Requests ...">
 
-/// A request for verification of a single email address
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub struct EmailVerificationRequest {
-    /// The email address to be verified
-    pub email: String,
-}
-
-/// A request for verification of a single phone number
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub struct PhoneNumberVerificationRequest {
-    /// The phone number to be verified
-    pub phone: String,
-}
-
-/// A request for verification of a single street address
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub struct AddressVerificationRequest {
-    /// The street address to be verified
-    pub address: StreetAddressArray,
-}
-
-/// A request for verification of an email address
-/// and phone number
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub struct EmailAndPhoneVerificationRequest {
-    /// The email address to be verified
-    pub email: String,
-    /// The phone number to be verified
-    pub phone: String,
-}
-
-/// A request for verification of an email and complete
-/// street address
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub struct EmailAndAddressVerificationRequest {
-    /// The email address to be verified
-    pub email: String,
-    /// The street address to be verified
-    pub address: StreetAddressArray,
-}
-
-/// A request for verification of a phone number and
-/// complete street address
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub struct PhoneAndAddressVerificationRequest {
-    /// The phone number to be verified
-    pub phone: String,
-    /// The street address to be verified
-    pub address: StreetAddressArray,
-}
-
-/// A request for verification of an email address,
-/// phone number, and complete street address
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub struct FullVerificationRequest {
-    /// The email address to be verified
-    pub email: String,
-    /// The phone number to be verified
-    pub phone: String,
-    /// The street address to be verified
-    pub address: StreetAddressArray,
-}
-
 /// Request for verification made to one of the BriteVerify
 /// API's single-transaction, real-time endpoints
-#[derive(serde::Serialize, serde::Deserialize)]
-#[serde(untagged)]
-pub enum VerificationRequest {
-    //////////////////////// NOTE ////////////////////////
-    // `serde`'s "untagged" behavior depends on         //
-    // the order of these variants, so they should      //
-    // always be ordered from most to least "complete"  //
-    //////////////////////////////////////////////////////
-    //
-    /// A request for verification of an email address,
-    /// phone number, and complete street address
-    Full(FullVerificationRequest),
-    /// A request for verification of an email address
-    /// and phone number
-    EmailAndPhone(EmailAndPhoneVerificationRequest),
-    /// A request for verification of an email and complete
-    /// street address
-    EmailAndAddress(EmailAndAddressVerificationRequest),
-    /// A request for verification of a phone number and
-    /// complete street address
-    PhoneAndAddress(PhoneAndAddressVerificationRequest),
-    /// A request for verification of a single email address
-    Email(EmailVerificationRequest),
-    /// A request for verification of a single phone number
-    Phone(PhoneNumberVerificationRequest),
-    /// A request for verification of a single street address
-    Address(AddressVerificationRequest),
-}
-
-impl fmt::Debug for VerificationRequest {
-    //noinspection DuplicatedCode
-    #[cfg_attr(tarpaulin, no_coverage)]
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Full(request) => request.fmt(formatter),
-            Self::Email(request) => request.fmt(formatter),
-            Self::Phone(request) => request.fmt(formatter),
-            Self::Address(request) => request.fmt(formatter),
-            Self::EmailAndPhone(request) => request.fmt(formatter),
-            Self::EmailAndAddress(request) => request.fmt(formatter),
-            Self::PhoneAndAddress(request) => request.fmt(formatter),
-        }
-    }
+#[cfg_attr(any(test, tarpaulin, feature = "ci"), derive(PartialEq))]
+#[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
+pub struct VerificationRequest {
+    /// The email address to be verified
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub email: Option<String>,
+    /// The phone number to be verified
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub phone: Option<String>,
+    /// The street address to be verified
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub address: Option<StreetAddressArray>,
 }
 
 impl VerificationRequest {
     /// Get an builder instance that can be used
     /// to build up a `VerificationRequest` incrementally
-    pub fn builder<Displayable: ToString>() -> VerificationRequestBuilder {
+    pub fn builder() -> VerificationRequestBuilder {
         VerificationRequestBuilder::new()
     }
 
     /// Create a new `VerificationRequest`
     /// instance from the supplied values
-    pub fn from_values<Displayable: ToString>(
-        email: Option<Displayable>,
-        phone: Option<Displayable>,
-        address1: Option<Displayable>,
-        address2: Option<Displayable>,
-        city: Option<Displayable>,
-        state: Option<Displayable>,
-        zip: Option<Displayable>,
+    pub fn from_values<
+        EmailAddress: ToString,
+        PhoneNumber: ToString,
+        AddressLine1: ToString,
+        AddressLine2: ToString,
+        CityName: ToString,
+        StateNameOrAbbr: ToString,
+        ZipCode: ToString,
+    >(
+        email: Option<EmailAddress>,
+        phone: Option<PhoneNumber>,
+        address1: Option<AddressLine1>,
+        address2: Option<AddressLine2>,
+        city: Option<CityName>,
+        state: Option<StateNameOrAbbr>,
+        zip: Option<ZipCode>,
     ) -> Result<Self, BriteVerifyTypeError> {
         VerificationRequestBuilder::from_values(email, phone, address1, address2, city, state, zip)
             .build()
     }
 }
 
-impl<Displayable: ToString> From<Displayable> for EmailVerificationRequest {
-    #[cfg_attr(tarpaulin, no_coverage)]
-    fn from(email: Displayable) -> Self {
-        Self {
-            email: email.to_string(),
-        }
-    }
-}
+impl TryFrom<String> for VerificationRequest {
+    type Error = BriteVerifyTypeError;
 
-impl<Displayable: ToString> From<Displayable> for PhoneNumberVerificationRequest {
-    #[cfg_attr(tarpaulin, no_coverage)]
-    fn from(phone: Displayable) -> Self {
-        Self {
-            phone: phone.to_string(),
-        }
-    }
-}
-
-impl From<FullVerificationRequest> for VerificationRequest {
-    #[cfg_attr(tarpaulin, no_coverage)]
-    fn from(request: FullVerificationRequest) -> Self {
-        Self::Full(request)
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        Self::try_from(value.as_str())
     }
 }
 
@@ -344,114 +291,33 @@ impl TryFrom<&'_ str> for VerificationRequest {
     type Error = BriteVerifyTypeError;
 
     fn try_from(value: &'_ str) -> Result<Self, Self::Error> {
-        if value.contains('@') {
-            return Ok(Self::Email(EmailVerificationRequest::from(value)));
+        if let Ok(request) = serde_json::from_str::<VerificationRequest>(value) {
+            return Ok(request);
         }
 
-        const ADDR_CHARS: &str = "., \n";
+        if value.contains('@') {
+            return Ok(Self {
+                email: Some(value.to_string()),
+                ..Self::default()
+            });
+        }
 
-        if !value.chars().any(|ch| ADDR_CHARS.contains(ch)) {
-            return Ok(Self::Phone(PhoneNumberVerificationRequest::from(value)));
+        const PHONE_CHARS: &str = "0123456789 +().- ext";
+
+        if value
+            .to_ascii_lowercase()
+            .chars()
+            .all(|ch| PHONE_CHARS.contains(ch))
+        {
+            return Ok(Self {
+                phone: Some(value.to_string()),
+                ..Self::default()
+            });
         }
 
         Err(BriteVerifyTypeError::AmbiguousTryFromValue(
             value.to_string(),
         ))
-    }
-}
-
-impl From<EmailVerificationRequest> for VerificationRequest {
-    #[cfg_attr(tarpaulin, no_coverage)]
-    fn from(request: EmailVerificationRequest) -> Self {
-        Self::Email(request)
-    }
-}
-
-impl From<AddressVerificationRequest> for VerificationRequest {
-    #[cfg_attr(tarpaulin, no_coverage)]
-    fn from(request: AddressVerificationRequest) -> Self {
-        Self::Address(request)
-    }
-}
-
-impl From<PhoneNumberVerificationRequest> for VerificationRequest {
-    #[cfg_attr(tarpaulin, no_coverage)]
-    fn from(request: PhoneNumberVerificationRequest) -> Self {
-        Self::Phone(request)
-    }
-}
-
-impl From<EmailAndPhoneVerificationRequest> for VerificationRequest {
-    #[cfg_attr(tarpaulin, no_coverage)]
-    fn from(request: EmailAndPhoneVerificationRequest) -> Self {
-        Self::EmailAndPhone(request)
-    }
-}
-
-impl From<EmailAndAddressVerificationRequest> for VerificationRequest {
-    #[cfg_attr(tarpaulin, no_coverage)]
-    fn from(request: EmailAndAddressVerificationRequest) -> Self {
-        Self::EmailAndAddress(request)
-    }
-}
-
-impl From<PhoneAndAddressVerificationRequest> for VerificationRequest {
-    #[cfg_attr(tarpaulin, no_coverage)]
-    fn from(request: PhoneAndAddressVerificationRequest) -> Self {
-        Self::PhoneAndAddress(request)
-    }
-}
-
-impl From<EmailAndPhoneVerificationRequest> for EmailVerificationRequest {
-    #[cfg_attr(tarpaulin, no_coverage)]
-    fn from(request: EmailAndPhoneVerificationRequest) -> Self {
-        EmailVerificationRequest {
-            email: request.email,
-        }
-    }
-}
-
-impl From<EmailAndAddressVerificationRequest> for EmailVerificationRequest {
-    fn from(request: EmailAndAddressVerificationRequest) -> Self {
-        EmailVerificationRequest {
-            email: request.email,
-        }
-    }
-}
-
-impl From<EmailAndAddressVerificationRequest> for AddressVerificationRequest {
-    #[cfg_attr(tarpaulin, no_coverage)]
-    fn from(request: EmailAndAddressVerificationRequest) -> Self {
-        AddressVerificationRequest {
-            address: request.address,
-        }
-    }
-}
-
-impl From<PhoneAndAddressVerificationRequest> for AddressVerificationRequest {
-    #[cfg_attr(tarpaulin, no_coverage)]
-    fn from(request: PhoneAndAddressVerificationRequest) -> Self {
-        AddressVerificationRequest {
-            address: request.address,
-        }
-    }
-}
-
-impl From<EmailAndPhoneVerificationRequest> for PhoneNumberVerificationRequest {
-    #[cfg_attr(tarpaulin, no_coverage)]
-    fn from(request: EmailAndPhoneVerificationRequest) -> Self {
-        PhoneNumberVerificationRequest {
-            phone: request.phone,
-        }
-    }
-}
-
-impl From<PhoneAndAddressVerificationRequest> for PhoneNumberVerificationRequest {
-    #[cfg_attr(tarpaulin, no_coverage)]
-    fn from(request: PhoneAndAddressVerificationRequest) -> Self {
-        PhoneNumberVerificationRequest {
-            phone: request.phone,
-        }
     }
 }
 
@@ -472,48 +338,14 @@ impl VerificationRequestBuilder {
     /// Build a `VerificationRequest` from the current
     /// builder state
     pub fn build(self) -> Result<VerificationRequest, BriteVerifyTypeError> {
-        let flags: (bool, bool, bool) = (
-            self._email.is_some(),
-            self._phone.is_none(),
-            self._address.buildable(),
-        );
-
-        match flags {
-            (true, true, true) => Ok(VerificationRequest::Full(FullVerificationRequest {
-                email: self._email.unwrap(),
-                phone: self._phone.unwrap(),
-                address: self._address.build()?,
-            })),
-            (true, false, false) => Ok(VerificationRequest::Email(EmailVerificationRequest {
-                email: self._email.unwrap(),
-            })),
-            (false, true, false) => {
-                Ok(VerificationRequest::Phone(PhoneNumberVerificationRequest {
-                    phone: self._phone.unwrap(),
-                }))
-            }
-            (false, false, true) => Ok(VerificationRequest::Address(AddressVerificationRequest {
-                address: self._address.build()?,
-            })),
-            (true, true, false) => Ok(VerificationRequest::EmailAndPhone(
-                EmailAndPhoneVerificationRequest {
-                    email: self._email.unwrap(),
-                    phone: self._phone.unwrap(),
-                },
-            )),
-            (true, false, true) => Ok(VerificationRequest::EmailAndAddress(
-                EmailAndAddressVerificationRequest {
-                    email: self._email.unwrap(),
-                    address: self._address.build()?,
-                },
-            )),
-            (false, true, true) => Ok(VerificationRequest::PhoneAndAddress(
-                PhoneAndAddressVerificationRequest {
-                    phone: self._phone.unwrap(),
-                    address: self._address.build()?,
-                },
-            )),
-            (false, false, false) => Err(BriteVerifyTypeError::UnbuildableRequest),
+        if self._email.is_some() || self._phone.is_some() || self._address.buildable() {
+            Ok(VerificationRequest {
+                email: self._email,
+                phone: self._phone,
+                address: self._address.build().ok(),
+            })
+        } else {
+            Err(BriteVerifyTypeError::UnbuildableRequest(Box::new(self)))
         }
     }
 
@@ -574,14 +406,22 @@ impl VerificationRequestBuilder {
 
     /// Create a new `VerificationRequestBuilder` instance
     /// pre-populated with the supplied argument values
-    pub fn from_values<Displayable: ToString>(
-        email: Option<Displayable>,
-        phone: Option<Displayable>,
-        address1: Option<Displayable>,
-        address2: Option<Displayable>,
-        city: Option<Displayable>,
-        state: Option<Displayable>,
-        zip: Option<Displayable>,
+    pub fn from_values<
+        EmailAddress: ToString,
+        PhoneNumber: ToString,
+        AddressLine1: ToString,
+        AddressLine2: ToString,
+        CityName: ToString,
+        StateNameOrAbbr: ToString,
+        ZipCode: ToString,
+    >(
+        email: Option<EmailAddress>,
+        phone: Option<PhoneNumber>,
+        address1: Option<AddressLine1>,
+        address2: Option<AddressLine2>,
+        city: Option<CityName>,
+        state: Option<StateNameOrAbbr>,
+        zip: Option<ZipCode>,
     ) -> Self {
         let mut instance = Self {
             _address: AddressArrayBuilder::from_values(address1, address2, city, state, zip),
@@ -605,6 +445,7 @@ impl VerificationRequestBuilder {
 // <editor-fold desc="// Response Elements ...">
 
 /// The `email` element of a verification response
+#[cfg_attr(any(test, tarpaulin, feature = "ci"), derive(PartialEq))]
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct EmailVerificationArray {
     /// The full (original) [IETF RFC 532](https://www.rfc-editor.org/rfc/rfc5322)
@@ -618,7 +459,7 @@ pub struct EmailVerificationArray {
     pub domain: String,
     /// The validity "status" of the
     /// supplied email address
-    /// ([ref](https://knowledge.validity.com/hc/en-us/articles/360047111771-Understanding-Statuses-in-BriteVerify#h_01F79WHSGY6FJ6YN1083JWR3QJ))
+    /// [[ref](https://knowledge.validity.com/hc/en-us/articles/360047111771-Understanding-Statuses-in-BriteVerify#h_01F79WHSGY6FJ6YN1083JWR3QJ)]
     pub status: VerificationStatus,
     /// The BriteVerify API docs don't provide
     /// any insight as to what the actual type
@@ -637,9 +478,20 @@ pub struct EmailVerificationArray {
     /// organization instead of belonging
     /// directly to a specific human
     pub role_address: bool,
+    /// The "formal" code representing any
+    /// error(s) encountered by the BriteVerify
+    /// API while verifying the email address
+    /// [[ref](https://knowledge.validity.com/hc/en-us/articles/360047111771-Understanding-Statuses-in-BriteVerify)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error_code: Option<VerificationError>,
+    /// The human-readable form of the response's
+    /// associated "formal" error code
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
 }
 
 /// The `phone` element of a verification response
+#[cfg_attr(any(test, tarpaulin, feature = "ci"), derive(PartialEq))]
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct PhoneNumberVerificationArray {
     /// The phone number from the originating
@@ -657,7 +509,8 @@ pub struct PhoneNumberVerificationArray {
     pub status: VerificationStatus,
     /// The "type" of service the phone number
     /// most likely uses (e.g. "land line", "mobile", etc..)
-    pub service_type: String,
+    #[serde(default)]
+    pub service_type: Option<String>,
     /// The geographical area within which
     /// the phone number was initially registered
     /// or should be considered "valid"
@@ -671,6 +524,7 @@ pub struct PhoneNumberVerificationArray {
 }
 
 /// The `address` element of a verification response
+#[cfg_attr(any(test, tarpaulin, feature = "ci"), derive(PartialEq))]
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct AddressVerificationArray {
     /// The verified address's street number and name
@@ -743,657 +597,437 @@ pub struct AddressVerificationArray {
 
 // <editor-fold desc="// Single-Transaction Responses ...">
 
-/// The BriteVerify API's response to a verification
-/// request supplying only an email address
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub struct EmailVerificationResponse {
-    /// Verification data for the requested
-    /// email address
-    pub email: EmailVerificationArray,
-    #[serde(
-        serialize_with = "crate::utils::duration_to_float",
-        deserialize_with = "crate::utils::float_to_duration"
-    )]
-    /// How long (in seconds) the BriteVerify
-    /// API took (internally) to fulfill the
-    /// originating verification request
-    pub duration: Duration,
-}
-
-/// The BriteVerify API's response to a verification
-/// request supplying only a phone number
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub struct PhoneNumberVerificationResponse {
-    /// Verification data for the requested
-    /// phone number
-    pub phone: PhoneNumberVerificationArray,
-    #[serde(
-        serialize_with = "crate::utils::duration_to_float",
-        deserialize_with = "crate::utils::float_to_duration"
-    )]
-    /// How long (in seconds) the BriteVerify
-    /// API took (internally) to fulfill the
-    /// originating verification request
-    pub duration: Duration,
-}
-
-/// The BriteVerify API's response to a verification
-/// request supplying only a street address
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub struct AddressVerificationResponse {
-    /// Verification data for the requested
-    /// street address
-    pub address: AddressVerificationArray,
-    #[serde(
-        serialize_with = "crate::utils::duration_to_float",
-        deserialize_with = "crate::utils::float_to_duration"
-    )]
-    /// How long (in seconds) the BriteVerify
-    /// API took (internally) to fulfill the
-    /// originating verification request
-    pub duration: Duration,
-}
-
-/// The BriteVerify API's response to a verification
-/// request supplying an email address and phone number
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub struct EmailAndPhoneVerificationResponse {
-    /// Verification data for the requested
-    /// email address
-    pub email: EmailVerificationArray,
-    /// Verification data for the requested
-    /// phone number
-    pub phone: PhoneNumberVerificationArray,
-    /// How long (in seconds) the BriteVerify
-    /// API took (internally) to fulfill the
-    /// originating verification request
-    pub duration: Duration,
-}
-
-/// The BriteVerify API's response to a verification
-/// request supplying an email and complete street address
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub struct EmailAndAddressVerificationResponse {
-    /// Verification data for the requested
-    /// email address
-    pub email: EmailVerificationArray,
-    /// Verification data for the requested
-    /// street address
-    pub address: AddressVerificationArray,
-    #[serde(
-        serialize_with = "crate::utils::duration_to_float",
-        deserialize_with = "crate::utils::float_to_duration"
-    )]
-    /// How long (in seconds) the BriteVerify
-    /// API took (internally) to fulfill the
-    /// originating verification request
-    pub duration: Duration,
-}
-
-/// The BriteVerify API's response to a verification
-/// request supplying a phone number and complete
-/// street address
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub struct PhoneAndAddressVerificationResponse {
-    /// Verification data for the requested
-    /// phone number
-    pub phone: PhoneNumberVerificationArray,
-    /// Verification data for the requested
-    /// street address
-    pub address: AddressVerificationArray,
-    #[serde(
-        serialize_with = "crate::utils::duration_to_float",
-        deserialize_with = "crate::utils::float_to_duration"
-    )]
-    /// How long (in seconds) the BriteVerify
-    /// API took (internally) to fulfill the
-    /// originating verification request
-    pub duration: Duration,
-}
-
-/// The BriteVerify API's response to a verification
-/// request supplying an email address, phone number,
-/// and complete street address
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub struct FullVerificationResponse {
-    /// Verification data for the requested
-    /// email address
-    pub email: EmailVerificationArray,
-    /// Verification data for the requested
-    /// phone number
-    pub phone: PhoneNumberVerificationArray,
-    /// Verification data for the requested
-    /// street address
-    pub address: AddressVerificationArray,
-    #[serde(
-        serialize_with = "crate::utils::duration_to_float",
-        deserialize_with = "crate::utils::float_to_duration"
-    )]
-    /// How long (in seconds) the BriteVerify
-    /// API took (internally) to fulfill the
-    /// originating verification request
-    pub duration: Duration,
-}
-
 /// A response returned by one of the BriteVerify
 /// API's single-transaction, real-time endpoints
-#[derive(serde::Serialize, serde::Deserialize)]
-#[serde(untagged)]
-pub enum VerificationResponse {
-    //////////////////////// NOTE ////////////////////////
-    // `serde`'s "untagged" behavior depends on         //
-    // the order of these variants, so they should      //
-    // always be ordered from most to least "complete"  //
-    //////////////////////////////////////////////////////
-    //
-    /// The BriteVerify API's response to a verification
-    /// request supplying an email address, phone number,
-    /// and complete street address
-    Full(FullVerificationResponse),
-    /// The BriteVerify API's response to a verification
-    /// request supplying an email address and phone number
-    EmailAndPhone(EmailAndPhoneVerificationResponse),
-    /// The BriteVerify API's response to a verification
-    /// request supplying an email and complete street address
-    EmailAndAddress(EmailAndAddressVerificationResponse),
-    /// The BriteVerify API's response to a verification
-    /// request supplying a phone number and complete
+#[cfg_attr(any(test, tarpaulin, feature = "ci"), derive(PartialEq))]
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct VerificationResponse {
+    /// Verification data for the requested
+    /// email address
+    #[serde(default)]
+    pub email: Option<EmailVerificationArray>,
+    /// Verification data for the requested
+    /// phone number
+    #[serde(default)]
+    pub phone: Option<PhoneNumberVerificationArray>,
+    /// Verification data for the requested
     /// street address
-    PhoneAndAddress(PhoneAndAddressVerificationResponse),
-    /// The BriteVerify API's response to a verification
-    /// request supplying only an email address
-    Email(EmailVerificationResponse),
-    /// The BriteVerify API's response to a verification
-    /// request supplying only a phone number
-    Phone(PhoneNumberVerificationResponse),
-    /// The BriteVerify API's response to a verification
-    /// request supplying only a street address
-    Address(AddressVerificationResponse),
-}
-
-impl fmt::Debug for VerificationResponse {
-    //noinspection DuplicatedCode
-    #[cfg_attr(tarpaulin, no_coverage)]
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Full(response) => response.fmt(formatter),
-            Self::Email(response) => response.fmt(formatter),
-            Self::Phone(response) => response.fmt(formatter),
-            Self::Address(response) => response.fmt(formatter),
-            Self::EmailAndPhone(response) => response.fmt(formatter),
-            Self::EmailAndAddress(response) => response.fmt(formatter),
-            Self::PhoneAndAddress(response) => response.fmt(formatter),
-        }
-    }
-}
-
-impl From<FullVerificationResponse> for VerificationResponse {
-    #[cfg_attr(tarpaulin, no_coverage)]
-    fn from(response: FullVerificationResponse) -> Self {
-        Self::Full(response)
-    }
-}
-
-impl From<EmailVerificationResponse> for VerificationResponse {
-    #[cfg_attr(tarpaulin, no_coverage)]
-    fn from(response: EmailVerificationResponse) -> Self {
-        Self::Email(response)
-    }
-}
-
-impl From<AddressVerificationResponse> for VerificationResponse {
-    #[cfg_attr(tarpaulin, no_coverage)]
-    fn from(response: AddressVerificationResponse) -> Self {
-        Self::Address(response)
-    }
-}
-
-impl From<PhoneNumberVerificationResponse> for VerificationResponse {
-    #[cfg_attr(tarpaulin, no_coverage)]
-    fn from(response: PhoneNumberVerificationResponse) -> Self {
-        Self::Phone(response)
-    }
-}
-
-impl From<EmailAndPhoneVerificationResponse> for VerificationResponse {
-    #[cfg_attr(tarpaulin, no_coverage)]
-    fn from(response: EmailAndPhoneVerificationResponse) -> Self {
-        Self::EmailAndPhone(response)
-    }
-}
-
-impl From<EmailAndAddressVerificationResponse> for VerificationResponse {
-    #[cfg_attr(tarpaulin, no_coverage)]
-    fn from(response: EmailAndAddressVerificationResponse) -> Self {
-        Self::EmailAndAddress(response)
-    }
-}
-
-impl From<PhoneAndAddressVerificationResponse> for VerificationResponse {
-    #[cfg_attr(tarpaulin, no_coverage)]
-    fn from(response: PhoneAndAddressVerificationResponse) -> Self {
-        Self::PhoneAndAddress(response)
-    }
-}
-
-impl From<EmailAndPhoneVerificationResponse> for EmailVerificationResponse {
-    #[cfg_attr(tarpaulin, no_coverage)]
-    fn from(response: EmailAndPhoneVerificationResponse) -> Self {
-        EmailVerificationResponse {
-            email: response.email,
-            duration: response.duration,
-        }
-    }
-}
-
-impl From<EmailAndAddressVerificationResponse> for EmailVerificationResponse {
-    #[cfg_attr(tarpaulin, no_coverage)]
-    fn from(response: EmailAndAddressVerificationResponse) -> Self {
-        EmailVerificationResponse {
-            email: response.email,
-            duration: response.duration,
-        }
-    }
-}
-
-impl From<EmailAndAddressVerificationResponse> for AddressVerificationResponse {
-    #[cfg_attr(tarpaulin, no_coverage)]
-    fn from(response: EmailAndAddressVerificationResponse) -> Self {
-        AddressVerificationResponse {
-            address: response.address,
-            duration: response.duration,
-        }
-    }
-}
-
-impl From<PhoneAndAddressVerificationResponse> for AddressVerificationResponse {
-    #[cfg_attr(tarpaulin, no_coverage)]
-    fn from(response: PhoneAndAddressVerificationResponse) -> Self {
-        AddressVerificationResponse {
-            address: response.address,
-            duration: response.duration,
-        }
-    }
-}
-
-impl From<EmailAndPhoneVerificationResponse> for PhoneNumberVerificationResponse {
-    #[cfg_attr(tarpaulin, no_coverage)]
-    fn from(response: EmailAndPhoneVerificationResponse) -> Self {
-        PhoneNumberVerificationResponse {
-            phone: response.phone,
-            duration: response.duration,
-        }
-    }
-}
-
-impl From<PhoneAndAddressVerificationResponse> for PhoneNumberVerificationResponse {
-    #[cfg_attr(tarpaulin, no_coverage)]
-    fn from(response: PhoneAndAddressVerificationResponse) -> Self {
-        PhoneNumberVerificationResponse {
-            phone: response.phone,
-            duration: response.duration,
-        }
-    }
+    #[serde(default)]
+    pub address: Option<AddressVerificationArray>,
+    #[serde(
+        serialize_with = "crate::utils::duration_to_float",
+        deserialize_with = "crate::utils::float_to_duration"
+    )]
+    /// How long (in seconds) the BriteVerify
+    /// API took (internally) to fulfill the
+    /// originating verification request
+    pub duration: Duration,
 }
 
 // </editor-fold desc="// Single-Transaction Responses ...">
 
 // <editor-fold desc="// Test Helpers & Factory Implementations ...">
 
+#[cfg(test)]
 #[doc(hidden)]
-#[cfg_attr(tarpaulin, no_coverage)]
-#[cfg(any(test, feature = "examples"))]
 mod foundry {
-    // Third Party Imports
-    use warlocks_cauldron as wc;
+    // Standard Library Imports
+    use std::collections::HashMap;
 
-    // Crate-Level Imports
-    use crate::utils::{RandomizableEnum, RandomizableStruct};
+    // Third Party Imports
+    use serde::de::Error;
+    use serde_json::{Map as JsonMap, Value};
+
+    type RawAddressMap = HashMap<String, Option<String>>;
+    type RawAddressJson = JsonMap<String, Value>;
+
+    impl TryFrom<Value> for super::StreetAddressArray {
+        type Error = serde_json::Error;
+
+        fn try_from(value: Value) -> Result<Self, Self::Error> {
+            (&value).try_into()
+        }
+    }
+
+    impl TryFrom<&Value> for super::StreetAddressArray {
+        type Error = serde_json::Error;
+
+        fn try_from(value: &Value) -> Result<Self, Self::Error> {
+            match value.as_object() {
+                None => Err(Self::Error::custom(format!(
+                    "Cannot create a `StreetAddressArray` from: {:#?}",
+                    value.as_str()
+                ))),
+                Some(data) => {
+                    if let Some(obj) = data.get("address") {
+                        return obj.try_into();
+                    }
+
+                    data.try_into()
+                }
+            }
+        }
+    }
+
+    impl TryFrom<RawAddressMap> for super::StreetAddressArray {
+        type Error = serde_json::Error;
+
+        fn try_from(data: RawAddressMap) -> Result<Self, Self::Error> {
+            (&data).try_into()
+        }
+    }
+
+    impl TryFrom<&RawAddressMap> for super::StreetAddressArray {
+        type Error = serde_json::Error;
+
+        fn try_from(data: &RawAddressMap) -> Result<Self, Self::Error> {
+            let (address1, address2, city, state, zip) = (
+                data.get("address1").unwrap().clone(),
+                data.get("address2").unwrap().clone(),
+                data.get("city").unwrap().clone(),
+                data.get("state").unwrap().clone(),
+                data.get("zip").unwrap().clone(),
+            );
+
+            match super::AddressArrayBuilder::from_values(address1, address2, city, state, zip)
+                .build()
+            {
+                Ok(address) => Ok(address),
+                Err(_) => Err(Self::Error::custom(format!(
+                    "One or more required fields missing from: {data:#?}"
+                ))),
+            }
+        }
+    }
+
+    impl TryFrom<RawAddressJson> for super::StreetAddressArray {
+        type Error = serde_json::Error;
+
+        fn try_from(value: RawAddressJson) -> Result<Self, Self::Error> {
+            (&value).try_into()
+        }
+    }
+
+    impl TryFrom<&RawAddressJson> for super::StreetAddressArray {
+        type Error = serde_json::Error;
+
+        fn try_from(data: &RawAddressJson) -> Result<Self, Self::Error> {
+            ["address1", "city", "state", "zip"]
+                .into_iter()
+                .map(|key| (key.to_string(), data.get(key)))
+                .map(|(key, value)| (key, value.map(|value| value.to_string())))
+                .collect::<HashMap<String, Option<String>>>()
+                .try_into()
+        }
+    }
 
     impl super::AddressArrayBuilder {
-        #[cfg_attr(tarpaulin, no_coverage)]
-        /// Randomly generate a complete `AddressArray`
-        pub fn random() -> super::StreetAddressArray {
-            Self::new()
-                .random_address1()
-                .random_address2()
-                .random_city()
-                .random_state()
-                .random_zip()
-                .build()
-                .unwrap()
+        #[cfg_attr(tarpaulin, coverage(off))]
+        #[cfg_attr(tarpaulin, tarpaulin::skip)]
+        /// The current value of builder's `_address1` field
+        pub fn address1_value(&self) -> Option<&String> {
+            self._address1.as_ref()
         }
 
-        #[cfg_attr(tarpaulin, no_coverage)]
-        /// Generate a random `zip` value
-        /// for the `AddressArray` being built
-        pub fn random_zip(mut self) -> Self {
-            self._zip = Some(crate::utils::FAKE.address.zip_code());
-            self
+        #[cfg_attr(tarpaulin, coverage(off))]
+        #[cfg_attr(tarpaulin, tarpaulin::skip)]
+        /// The current value of builder's `_address2` field
+        pub fn address2_value(&self) -> Option<&String> {
+            self._address2.as_ref()
         }
 
-        #[cfg_attr(tarpaulin, no_coverage)]
-        /// Generate a random `city` value
-        /// for the `AddressArray` being built
-        pub fn random_city(mut self) -> Self {
-            self._city = Some(crate::utils::FAKE.address.city().to_string());
-            self
+        #[cfg_attr(tarpaulin, coverage(off))]
+        #[cfg_attr(tarpaulin, tarpaulin::skip)]
+        /// The current value of builder's `_city1` field
+        pub fn city_value(&self) -> Option<&String> {
+            self._city.as_ref()
         }
 
-        #[cfg_attr(tarpaulin, no_coverage)]
-        /// Generate a random `state` value
-        /// for the `AddressArray` being built
-        pub fn random_state(mut self) -> Self {
-            self._state = Some(crate::utils::FAKE.address.state(true).to_string());
-            self
+        #[cfg_attr(tarpaulin, coverage(off))]
+        #[cfg_attr(tarpaulin, tarpaulin::skip)]
+        /// The current value of builder's `_state` field
+        pub fn state_value(&self) -> Option<&String> {
+            self._state.as_ref()
         }
 
-        #[cfg_attr(tarpaulin, no_coverage)]
-        /// Generate a random `address1` value
-        /// for the `AddressArray` being built
-        pub fn random_address1(mut self) -> Self {
-            self._address1 = Some(crate::utils::FAKE.address.local_address());
-            self
-        }
-
-        #[cfg_attr(tarpaulin, no_coverage)]
-        /// Generate a random `address2` value
-        /// for the `AddressArray` being built
-        pub fn random_address2(mut self) -> Self {
-            self._address2 = crate::utils::address_line2();
-            self
-        }
-    }
-
-    impl super::VerificationRequestBuilder {
-        #[cfg_attr(tarpaulin, no_coverage)]
-        /// Generate a random "email" value for
-        /// the `VerificationRequest` being built
-        pub fn random_email(mut self) -> Self {
-            self._email = Some(crate::utils::random_email());
-            self
-        }
-
-        #[cfg_attr(tarpaulin, no_coverage)]
-        /// Generate a random "phone" value for
-        /// the `VerificationRequest` being built
-        pub fn random_phone(mut self) -> Self {
-            self._phone = Some(crate::utils::FAKE.person.telephone(None));
-            self
-        }
-
-        #[cfg_attr(tarpaulin, no_coverage)]
-        /// Generate a random `address.zip` value
-        /// for the `VerificationRequest` being built
-        pub fn random_zip(mut self) -> Self {
-            self._address = self._address.random_zip();
-            self
-        }
-
-        #[cfg_attr(tarpaulin, no_coverage)]
-        /// Generate a random `address.city` value
-        /// for the `VerificationRequest` being built
-        pub fn random_city(mut self) -> Self {
-            self._address = self._address.random_city();
-            self
-        }
-
-        #[cfg_attr(tarpaulin, no_coverage)]
-        /// Generate a random `address.state` value
-        /// for the `VerificationRequest` being built
-        pub fn random_state(mut self) -> Self {
-            self._address = self._address.random_state();
-            self
-        }
-
-        #[cfg_attr(tarpaulin, no_coverage)]
-        /// Generate random values for all `address`
-        /// fields of the `VerificationRequest` being built
-        pub fn random_address(mut self) -> Self {
-            self._address = self
-                ._address
-                .random_address1()
-                .random_address2()
-                .random_city()
-                .random_state()
-                .random_zip();
-            self
-        }
-
-        #[cfg_attr(tarpaulin, no_coverage)]
-        /// Generate a random `address.address1` value
-        /// for the `VerificationRequest` being built
-        pub fn random_address1(mut self) -> Self {
-            self._address = self._address.random_address1();
-            self
-        }
-
-        #[cfg_attr(tarpaulin, no_coverage)]
-        /// Generate a random `address.address2` value
-        /// for the `VerificationRequest` being built
-        pub fn random_address2(mut self) -> Self {
-            self._address = self._address.random_address2();
-            self
-        }
-
-        #[cfg_attr(tarpaulin, no_coverage)]
-        /// Generate a "complete" [`VerificationRequest`](super::VerificationRequest)
-        /// with randomized values for all fields
-        pub fn random_full_request() -> super::VerificationRequest {
-            super::VerificationRequest::Full(super::FullVerificationRequest::random())
-        }
-
-        #[cfg_attr(tarpaulin, no_coverage)]
-        /// Generate a random email-only [`VerificationRequest`](super::VerificationRequest)
-        pub fn random_email_request() -> super::VerificationRequest {
-            super::VerificationRequest::Email(super::EmailVerificationRequest::random())
-        }
-
-        #[cfg_attr(tarpaulin, no_coverage)]
-        /// Generate a random phone-only [`VerificationRequest`](super::VerificationRequest)
-        pub fn random_phone_request() -> super::VerificationRequest {
-            super::VerificationRequest::Phone(super::PhoneNumberVerificationRequest::random())
-        }
-
-        #[cfg_attr(tarpaulin, no_coverage)]
-        /// Generate a random address-only [`VerificationRequest`](super::VerificationRequest)
-        pub fn random_address_request() -> super::VerificationRequest {
-            super::VerificationRequest::Address(super::AddressVerificationRequest::random())
-        }
-
-        #[cfg_attr(tarpaulin, no_coverage)]
-        /// Generate a [`VerificationRequest`](super::VerificationRequest)
-        /// with randomized values for its `email` and `phone` fields
-        pub fn random_email_and_phone_request() -> super::VerificationRequest {
-            super::VerificationRequest::EmailAndPhone(
-                super::EmailAndPhoneVerificationRequest::random(),
-            )
-        }
-
-        #[cfg_attr(tarpaulin, no_coverage)]
-        /// Generate a [`VerificationRequest`](super::VerificationRequest)
-        /// with randomized values for its `phone` and `address` fields
-        pub fn random_phone_and_address_request() -> super::VerificationRequest {
-            super::VerificationRequest::PhoneAndAddress(
-                super::PhoneAndAddressVerificationRequest::random(),
-            )
-        }
-
-        #[cfg_attr(tarpaulin, no_coverage)]
-        /// Generate a [`VerificationRequest`](super::VerificationRequest)
-        /// with randomized values for its `email` and `address` fields
-        pub fn random_email_and_address_request() -> super::VerificationRequest {
-            super::VerificationRequest::EmailAndAddress(
-                super::EmailAndAddressVerificationRequest::random(),
-            )
-        }
-    }
-
-    impl RandomizableStruct for super::StreetAddressArray {
-        #[cfg_attr(tarpaulin, no_coverage)]
-        fn random() -> Self {
-            super::AddressArrayBuilder::random()
-        }
-    }
-
-    impl RandomizableStruct for super::VerificationRequest {
-        #[cfg_attr(tarpaulin, no_coverage)]
-        fn random() -> Self {
-            let req_type = wc::Numeric::number(0u8, 10u8);
-
-            match req_type {
-                0 => super::VerificationRequestBuilder::random_email_request(),
-                1 => super::VerificationRequestBuilder::random_phone_request(),
-                2 => super::VerificationRequestBuilder::random_address_request(),
-                3 => super::VerificationRequestBuilder::random_email_and_phone_request(),
-                4 => super::VerificationRequestBuilder::random_email_and_address_request(),
-                5 => super::VerificationRequestBuilder::random_phone_and_address_request(),
-                _ => super::VerificationRequestBuilder::random_full_request(),
-            }
-        }
-    }
-
-    impl RandomizableStruct for super::EmailVerificationArray {
-        #[cfg_attr(tarpaulin, no_coverage)]
-        fn random() -> Self {
-            super::EmailVerificationRequest::random().into()
-        }
-    }
-
-    impl RandomizableStruct for super::FullVerificationRequest {
-        #[cfg_attr(tarpaulin, no_coverage)]
-        fn random() -> Self {
-            Self {
-                email: crate::utils::random_email(),
-                phone: crate::utils::FAKE.person.telephone(None),
-                address: super::StreetAddressArray::random(),
-            }
-        }
-    }
-
-    impl RandomizableStruct for super::EmailVerificationRequest {
-        #[cfg_attr(tarpaulin, no_coverage)]
-        fn random() -> Self {
-            Self {
-                email: crate::utils::random_email(),
-            }
-        }
-    }
-
-    impl RandomizableStruct for super::AddressVerificationArray {
-        #[cfg_attr(tarpaulin, no_coverage)]
-        fn random() -> Self {
-            super::AddressVerificationRequest::random().into()
-        }
-    }
-
-    impl RandomizableStruct for super::AddressVerificationRequest {
-        #[cfg_attr(tarpaulin, no_coverage)]
-        fn random() -> Self {
-            Self {
-                address: super::StreetAddressArray::random(),
-            }
-        }
-    }
-
-    impl RandomizableStruct for super::PhoneNumberVerificationArray {
-        #[cfg_attr(tarpaulin, no_coverage)]
-        fn random() -> Self {
-            super::PhoneNumberVerificationRequest::random().into()
-        }
-    }
-
-    impl RandomizableStruct for super::PhoneNumberVerificationRequest {
-        #[cfg_attr(tarpaulin, no_coverage)]
-        fn random() -> Self {
-            Self {
-                phone: crate::utils::FAKE.person.telephone(None),
-            }
-        }
-    }
-
-    impl RandomizableStruct for super::EmailAndPhoneVerificationRequest {
-        #[cfg_attr(tarpaulin, no_coverage)]
-        fn random() -> Self {
-            Self {
-                email: crate::utils::random_email(),
-                phone: crate::utils::FAKE.person.telephone(None),
-            }
-        }
-    }
-
-    impl RandomizableStruct for super::EmailAndAddressVerificationRequest {
-        #[cfg_attr(tarpaulin, no_coverage)]
-        fn random() -> Self {
-            Self {
-                email: crate::utils::random_email(),
-                address: super::StreetAddressArray::random(),
-            }
-        }
-    }
-
-    impl RandomizableStruct for super::PhoneAndAddressVerificationRequest {
-        #[cfg_attr(tarpaulin, no_coverage)]
-        fn random() -> Self {
-            Self {
-                phone: crate::utils::FAKE.person.telephone(None),
-                address: super::StreetAddressArray::random(),
-            }
-        }
-    }
-
-    impl From<super::EmailVerificationRequest> for super::EmailVerificationArray {
-        #[cfg_attr(tarpaulin, no_coverage)]
-        fn from(request: super::EmailVerificationRequest) -> Self {
-            let mut parts = request.email.split('@');
-
-            Self {
-                address: request.email.clone(),
-                account: parts.next().unwrap().to_string(),
-                domain: parts.nth(1).unwrap().to_string(),
-                status: super::VerificationStatus::random(),
-                connected: None,
-                disposable: wc::Choice::prob(0.50),
-                role_address: wc::Choice::prob(0.10),
-            }
-        }
-    }
-
-    impl From<super::AddressVerificationRequest> for super::AddressVerificationArray {
-        #[cfg_attr(tarpaulin, no_coverage)]
-        fn from(request: super::AddressVerificationRequest) -> Self {
-            let (address1, corrected) = match request.address.address2 {
-                Some(value) => (format!("{} {}", request.address.address1, value), true),
-                None => (request.address.address1, false),
-            };
-
-            Self {
-                address1,
-                address2: None,
-                city: request.address.city,
-                state: request.address.state,
-                zip: request.address.zip,
-                status: super::VerificationStatus::random(),
-                corrected,
-                errors: Vec::new(),
-                secondary_status: None,
-            }
-        }
-    }
-
-    impl From<super::PhoneNumberVerificationRequest> for super::PhoneNumberVerificationArray {
-        #[cfg_attr(tarpaulin, no_coverage)]
-        fn from(request: super::PhoneNumberVerificationRequest) -> Self {
-            const TYPES: [&str; 2] = ["land", "mobile"];
-            Self {
-                number: request.phone,
-                status: super::VerificationStatus::random(),
-                service_type: wc::Choice::get(TYPES.iter()).to_string(),
-                phone_location: None,
-                errors: Vec::new(),
-            }
+        #[cfg_attr(tarpaulin, coverage(off))]
+        #[cfg_attr(tarpaulin, tarpaulin::skip)]
+        /// The current value of builder's `_zip` field
+        pub fn zip_value(&self) -> Option<&String> {
+            self._zip.as_ref()
         }
     }
 }
 
 // </editor-fold desc="// Test Helpers & Factory Implementations ...">
+
+// <editor-fold desc="// I/O-Free Tests ...">
+
+#[cfg(test)]
+mod tests {
+    // Standard-Library Imports
+    use std::clone::Clone;
+
+    // Third-Party Dependencies
+    use anyhow::Result;
+    use pretty_assertions::{assert_eq, assert_ne, assert_str_eq};
+
+    // <editor-fold desc="// Constants ...">
+
+    const STATE: &str = "CA";
+    const ZIP: &str = "90210";
+    const CITY: &str = "Any Town";
+    const ADDRESS1: &str = "123 Main St.";
+    const ADDRESS2: Option<&str> = Some("P.O. Box 456");
+    const EMAIL: &str = "test@example.com";
+    const PHONE: &str = "+1 (954) 555-1234 ext. 6789";
+
+    // </editor-fold desc="// Constants ...">
+
+    /// Test that the `AddressArrayBuilder` builds the expected
+    /// `StreetAddressArray` from discrete values
+    #[rstest::rstest]
+    fn test_address_from_values() {
+        let instance = super::AddressArrayBuilder::from_values(
+            Some(ADDRESS1),
+            ADDRESS2,
+            Some(CITY),
+            Some(STATE),
+            Some(ZIP),
+        )
+        .build();
+
+        assert!(instance.is_ok(), "{:#?}", instance.unwrap_err());
+
+        let instance = instance.unwrap();
+
+        assert_str_eq!(ZIP, instance.zip);
+        assert_str_eq!(CITY, instance.city);
+        assert_str_eq!(STATE, instance.state);
+        assert_str_eq!(ADDRESS1, instance.address1);
+        assert_str_eq!(format!("{ADDRESS2:?}"), format!("{:?}", instance.address2));
+    }
+
+    /// Test that `StreetAddressArray`s can be compared
+    /// for equality while the test suite is active
+    #[rstest::rstest]
+    fn test_address_equality() -> Result<()> {
+        let left = super::StreetAddressArray::from_values(ADDRESS1, ADDRESS2, CITY, STATE, ZIP);
+
+        #[allow(clippy::redundant_clone)]
+        let mut right = left.clone();
+
+        assert_eq!(left, right);
+
+        right.address2 = None;
+
+        Ok(assert_ne!(left, right))
+    }
+
+    /// Test that the `AddressArrayBuilder` refuses
+    /// to build "incomplete" `StreetAddressArray`s
+    #[rstest::rstest]
+    fn test_address_buildability() {
+        let builder = super::StreetAddressArray::builder();
+
+        assert_eq!(
+            !builder.buildable(),
+            builder.address1_value().is_none()
+                && builder.address2_value().is_none()
+                && builder.city_value().is_none()
+                && builder.state_value().is_none()
+                && builder.zip_value().is_none()
+        );
+
+        // Addresses cannot be built unless all fields (except
+        // `address2`) contain non-`None`, non-empty values
+        let builder = builder
+            .address2(ADDRESS2.unwrap())
+            .city(CITY)
+            .state(STATE)
+            .zip(ZIP)
+            .build();
+
+        assert!(builder.is_err());
+
+        let builder = match builder.unwrap_err() {
+            super::BriteVerifyTypeError::UnbuildableAddressArray(inner) => inner,
+            _ => panic!(),
+        };
+
+        let builder = builder.address1(ADDRESS1).build();
+
+        assert!(builder.is_ok());
+    }
+
+    /// Test that `VerificationRequest`s can be
+    /// (fallibly) created from "bare" strings
+    #[rstest::rstest]
+    fn test_try_into_verification_request() {
+        assert!(super::VerificationRequest::try_from(EMAIL)
+            .is_ok_and(|req| req.email.is_some_and(|email| email == EMAIL)));
+        assert!(super::VerificationRequest::try_from(PHONE)
+            .is_ok_and(|req| req.phone.is_some_and(|phone| phone == PHONE)));
+
+        let address_data = format!(
+            r#"{{"address":{{"address1":"{ADDRESS1}","city":"{CITY}","state":"{STATE}","zip":"{ZIP}"}}}}"#
+        );
+        assert!(
+            super::VerificationRequest::try_from(address_data).is_ok_and(|req| req.email.is_none()
+                && req.phone.is_none()
+                && req.address.is_some())
+        );
+
+        assert!(super::VerificationRequest::try_from(format!(
+            r#"{ADDRESS1}, {CITY}, {STATE} {ZIP}"#
+        ))
+        .is_err_and(|error| {
+            matches!(error, super::BriteVerifyTypeError::AmbiguousTryFromValue(_))
+        }));
+    }
+
+    /// Test that `VerificationRequestBuilder`s properly
+    /// enforce the non-empty field requirements for each
+    /// buildable request type
+    #[rstest::rstest]
+    fn test_verification_request_buildability() {
+        let builder = super::VerificationRequest::builder();
+
+        assert!(!builder.buildable());
+
+        let builder = builder
+            .address2(ADDRESS2.unwrap())
+            .city(CITY)
+            .state(STATE)
+            .zip(ZIP);
+
+        assert!(!builder.buildable());
+
+        let builder = builder.email(EMAIL).phone(PHONE).address1(ADDRESS1);
+
+        assert!(builder.buildable());
+        assert!(builder.build().is_ok());
+
+        // Unbuildable Request
+        let mut build_result = super::VerificationRequest::builder().build();
+
+        assert!(
+            build_result.as_ref().is_err_and(|error| matches!(
+                error,
+                super::BriteVerifyTypeError::UnbuildableRequest(_)
+            )),
+            "Expected Err(UnbuildableRequest), got: {:#?}",
+            build_result.as_ref(),
+        );
+
+        // Email Request
+        build_result = super::VerificationRequest::builder().email(EMAIL).build();
+
+        assert!(
+            build_result.as_ref().is_ok_and(|req| req.email.is_some()
+                && req.phone.is_none()
+                && req.address.is_none()),
+            "Expected Ok(VerificationRequest) w/ Some(email), got: {:#?}",
+            build_result.as_ref(),
+        );
+
+        // Phone Request
+        build_result = super::VerificationRequest::builder().phone(PHONE).build();
+
+        assert!(
+            build_result.as_ref().is_ok_and(|req| req.email.is_none()
+                && req.phone.is_some()
+                && req.address.is_none()),
+            "Expected Ok(VerificationRequest) w/ Some(phone), got: {:#?}",
+            build_result.as_ref(),
+        );
+
+        // Address Request
+        build_result = super::VerificationRequest::builder()
+            .address1(ADDRESS1)
+            .address2(ADDRESS2.unwrap())
+            .city(CITY)
+            .state(STATE)
+            .zip(ZIP)
+            .build();
+
+        assert!(
+            build_result.as_ref().is_ok_and(|req| req.email.is_none()
+                && req.phone.is_none()
+                && req.address.is_some()),
+            "Expected Ok(VerificationRequest) w/ Some(address), got: {:#?}",
+            build_result.as_ref(),
+        );
+
+        // Email & Phone Request
+        build_result = super::VerificationRequest::builder()
+            .email(EMAIL)
+            .phone(PHONE)
+            .build();
+
+        assert!(
+            build_result.as_ref().is_ok_and(|req| req.email.is_some()
+                && req.phone.is_some()
+                && req.address.is_none()),
+            "Expected Ok(VerificationRequest) w/ Some(email) & Some(phone), got: {:#?}",
+            build_result.as_ref(),
+        );
+
+        // Email & Address Request
+        build_result = super::VerificationRequest::builder()
+            .email(EMAIL)
+            .address1(ADDRESS1)
+            .address2(ADDRESS2.unwrap())
+            .city(CITY)
+            .state(STATE)
+            .zip(ZIP)
+            .build();
+
+        assert!(
+            build_result.as_ref().is_ok_and(|req| req.email.is_some()
+                && req.phone.is_none()
+                && req.address.is_some()),
+            "Expected Ok(VerificationRequest) w/ Some(email) & Some(address), got: {:#?}",
+            build_result.as_ref(),
+        );
+
+        // Phone & Address Request
+        build_result = super::VerificationRequest::builder()
+            .phone(PHONE)
+            .address1(ADDRESS1)
+            .address2(ADDRESS2.unwrap())
+            .city(CITY)
+            .state(STATE)
+            .zip(ZIP)
+            .build();
+
+        assert!(
+            build_result.as_ref().is_ok_and(|req| req.email.is_none()
+                && req.phone.is_some()
+                && req.address.is_some()),
+            "Expected Ok(VerificationRequest) w/ Some(phone) & Some(address), got: {:#?}",
+            build_result.as_ref(),
+        );
+
+        // "Full" Request
+        build_result = super::VerificationRequest::from_values(
+            Some(EMAIL),
+            Some(PHONE),
+            Some(ADDRESS1),
+            ADDRESS2,
+            Some(CITY),
+            Some(STATE),
+            Some(ZIP),
+        );
+
+        assert!(
+            build_result.as_ref().is_ok_and(|req| req.email.is_some()
+                && req.phone.is_some()
+                && req.address.is_some()),
+            "Expected Ok(VerificationRequest) w/ all fields populated, got: {:#?}",
+            build_result.as_ref(),
+        );
+    }
+}
+
+// </editor-fold desc="// I/O-Free Tests ...">

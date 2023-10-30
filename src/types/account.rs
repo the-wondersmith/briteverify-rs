@@ -6,8 +6,9 @@ use std::fmt;
 use chrono::prelude::{DateTime, Utc};
 
 // Conditional Imports
+#[cfg(test)]
 #[doc(hidden)]
-#[cfg(any(test, feature = "examples"))]
+#[cfg_attr(any(test, tarpaulin), allow(unused_imports))]
 pub use self::foundry::*;
 
 // <editor-fold desc="// AccountCreditBalance ...">
@@ -31,7 +32,7 @@ pub struct AccountCreditBalance {
 }
 
 impl Default for AccountCreditBalance {
-    #[cfg_attr(tarpaulin, no_coverage)]
+    #[cfg_attr(tarpaulin, coverage(off))]
     fn default() -> Self {
         Self {
             credits: 0,
@@ -42,7 +43,7 @@ impl Default for AccountCreditBalance {
 }
 
 impl fmt::Display for AccountCreditBalance {
-    #[cfg_attr(tarpaulin, no_coverage)]
+    #[cfg_attr(tarpaulin, coverage(off))]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{:#?}", self)
     }
@@ -52,26 +53,8 @@ impl fmt::Display for AccountCreditBalance {
 
 // <editor-fold desc="// Test Helpers & Factory Implementations ...">
 
+#[cfg(test)]
 #[doc(hidden)]
-#[cfg_attr(tarpaulin, no_coverage)]
-#[cfg(any(test, feature = "examples"))]
-mod foundry {
-    // Third Party Imports
-    use warlocks_cauldron as wc;
-
-    // Crate-Level Imports
-    use crate::utils::RandomizableStruct;
-
-    impl RandomizableStruct for super::AccountCreditBalance {
-        /// Randomly generate an `AccountCreditBalance` instance
-        fn random() -> Self {
-            Self {
-                credits: wc::Numeric::number(0u32, 20_000u32),
-                credits_in_reserve: wc::Numeric::number(0u32, 200u32),
-                recorded_on: crate::utils::within_the_last_few_hours(),
-            }
-        }
-    }
-}
+mod foundry {}
 
 // </editor-fold desc="// Test Helpers & Factory Implementations ...">
