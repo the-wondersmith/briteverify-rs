@@ -1,4 +1,4 @@
-///! # BriteVerify API Account Balance Check Example
+//! # BriteVerify API Account Balance Check Example
 // Third-Party Imports
 use anyhow::Context;
 

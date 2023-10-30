@@ -1,13 +1,10 @@
-#![cfg_attr(not(feature = "examples"), allow(unused_imports))]
-///! # BriteVerify API Bulk Verification Example
+//! # BriteVerify API Bulk Verification Example
 // Third-Party Imports
 use anyhow::Context;
 
 // Crate-Level Imports
-#[cfg(feature = "examples")]
 use briteverify_rs::BriteVerifyClient;
 
-#[cfg(feature = "examples")]
 /// Example of creating a new BriteVerify API bulk
 /// verification list and retrieving the processed
 /// results once they're ready
@@ -23,11 +20,4 @@ async fn main() -> anyhow::Result<()> {
     let response = client.get_results_by_list_id(list_id).await?;
 
     Ok(println!("{response:#?}"))
-}
-
-#[cfg(not(feature = "examples"))]
-fn main() {
-    println!(
-        "\nThe bulk verification example cannot be run without enabling the 'examples' feature!\n"
-    )
 }
