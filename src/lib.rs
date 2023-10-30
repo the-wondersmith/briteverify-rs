@@ -1,5 +1,7 @@
 #![forbid(unsafe_code)]
-#![cfg_attr(tarpaulin, feature(no_coverage))]
+#![cfg_attr(tarpaulin, feature(register_tool))]
+#![cfg_attr(tarpaulin, register_tool(tarpaulin))]
+#![cfg_attr(tarpaulin, feature(coverage_attribute))]
 #![deny(missing_docs, missing_debug_implementations)]
 
 //! # briteverify-rs
@@ -55,9 +57,9 @@
 pub mod client;
 pub mod errors;
 pub mod types;
-#[cfg(feature = "examples")]
+#[cfg(any(test, tarpaulin))]
 pub mod utils;
-#[cfg(not(feature = "examples"))]
+#[cfg(not(any(test, tarpaulin)))]
 pub(crate) mod utils;
 
 pub use client::{BriteVerifyClient, BriteVerifyClientBuilder};

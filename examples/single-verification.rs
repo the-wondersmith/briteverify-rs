@@ -1,12 +1,10 @@
-#![cfg_attr(not(feature = "examples"), allow(unused_imports))]
-///! # BriteVerify API Real Time Verification Example
+//! # BriteVerify API Real Time Verification Example
 // Third-Party Imports
 use anyhow::Context;
 
 // Crate-Level Imports
 use briteverify_rs::BriteVerifyClient;
 
-#[cfg(feature = "examples")]
 /// Example of using the BriteVerify API's single-transaction,
 /// real-time endpoints to verify a single "contact" record
 #[tokio::main]
@@ -29,11 +27,4 @@ async fn main() -> anyhow::Result<()> {
         .await?;
 
     Ok(println!("{response:#?}"))
-}
-
-#[cfg(not(feature = "examples"))]
-fn main() {
-    println!(
-        "\nThe single verification example cannot be run without enabling the 'examples' feature!\n"
-    )
 }

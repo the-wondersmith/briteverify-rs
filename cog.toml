@@ -4,8 +4,9 @@ from_latest_tag = false
 ignore_merge_commits = false
 branch_whitelist = [ "main", "release/**" ]
 pre_bump_hooks = [
-    "cargo build --release",
     "cargo doc",
+    "cargo +nightly tarpaulin --packages briteverify-rs --no-dead-code --no-fail-fast --fail-under=75",
+    "cargo build --release --package briteverify-rs",
     "echo 'bumping from {{latest}} to {{version}}'",
     "cargo bump {{version}}",
 ]
@@ -16,6 +17,7 @@ post_package_bump_hooks = []
 [commit_types]
 hotfix = { changelog_title = "Hotfixes" }
 release = { changelog_title = "Releases" }
+wip = { changelog_title = "Work In Progress", omit_from_changelog = true }
 
 [changelog]
 path = "CHANGELOG.md"
