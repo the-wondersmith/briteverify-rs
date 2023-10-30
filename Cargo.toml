@@ -15,57 +15,79 @@ documentation = "https://docs.rs/briteverify-rs/latest/briteverify_rs/"
 keywords = ["briteverify", "client", "reqwest", "verification"]
 categories = ["web-programming::http-client", "api-bindings", "asynchronous", "email"]
 
+
 [[example]]
+
 name = "account-balance"
 crate-type = ["bin"]
+required-features = ["cli"]
 
 [[example]]
+
 name = "bulk-verification"
 crate-type = ["bin"]
+required-features = ["cli"]
 
 [[example]]
+
 name = "single-verification"
 crate-type = ["bin"]
+required-features = ["cli"]
+
 
 [dependencies]
 
+url = "^2"
 http = "^0.2"
 anyhow = "^1"
 futures = "^0.3"
-tracing = "^0.1"
 thiserror = "^1"
 serde_json = "^1"
-itertools = "^0.10"
+visible = "^0.0.1"
+itertools = "^0.11"
 futures-util = "^0.3"
 futures-timer = "^3.0"
-typed-builder = "^0.14"
 chrono = { version = "^0.4", features = ["serde"] }
+log = { version = "^0.4", features = ["kv_unstable_serde"] }
 serde = { version = "^1", features = ["std", "alloc", "derive"]}
-tracing-subscriber = { version = "^0.3", features = ["env-filter"] }
 reqwest = { version = "^0.11", default-features = false, features = ["gzip", "json", "brotli", "stream", "rustls-tls"] }
 
-# Optional Dependencies (Required For Examples)
-strum = { version = "^0.24", optional = true }
-once_cell = { version = "^1.17", optional = true }
-strum_macros = { version = "^0.24", optional = true }
-warlocks-cauldron = { version = "^0.26", optional = true, features = ["en"] }
-uuid = { version = "^1.3", optional = true, features = ["v4", "fast-rng", "macro-diagnostics"] }
+# Optional Dependencies (for enhanced visibility)
+instrumentation = { version = "^0.1", package = "tracing", optional = true }
+
+# Optional Dependencies (required for examples)
+env_logger = { version = "^0.10", optional = true }
+tokio = { version = "^1.27", optional = true, features = ["full"] }
+clap = { version = "^4.2", optional = true, features = ["env", "cargo", "derive"] }
+
 
 [dev-dependencies]
 
-regex = "^1.7"
-rstest = "^0.17"
-httpmock = "^0.6"
+rand = "^0.8"
+regex = "^1.8"
+rstest = "^0.18"
 serde_test = "^1"
+test-log = "^0.2"
+wiremock = "^0.5"
+once_cell = "^1.17"
 tokio-test = "^0.4"
+http-types = "^2.12"
 pretty_assertions = "^1.3"
-strum = { version = "^0.24", optional = false }
-tokio = { version = "^1.25", features = ["full"] }
-once_cell = { version = "^1.17", optional = false }
-strum_macros = { version = "^0.24", optional = false }
-warlocks-cauldron = { version = "^0.26", optional = false, features = ["en"] }
-uuid = { version = "^1.3", optional = false, features = ["v4", "fast-rng", "macro-diagnostics"] }
+uuid = { version = "^1.3", features = ["v4", "fast-rng", "macro-diagnostics"] }
+
+env_logger = { version = "^0.10", optional = false }
+tokio = { version = "^1.27", optional = false, features = ["full"] }
+
+
+[patch.crates-io]  # temporary override
+
+serde_test = { git = "https://github.com/the-wondersmith/serde-test.git", branch = "feat-public-ser-and-de-modules" }
+
 
 [features]
 
-examples = ["uuid", "strum", "once_cell", "strum_macros", "warlocks-cauldron"]
+ci = []
+default = []
+tracing = ["instrumentation"]
+cli = ["clap", "tokio", "env_logger"]
+
