@@ -2,6 +2,16 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## 0.2.0 - 2023-10-30
+#### Build system
+- Version bump - (556450a) - Mark S
+#### Miscellaneous Chores
+- **(ci)** test coverage increased to ~76% (#7) - (d8100f4) - Mark S
+#### Style
+- **(ci)** Add badges - (82de453) - Mark S
+
+- - -
+
 ## 0.1.1 - 2023-04-20
 #### Continuous Integration
 - add github action for test coverage (#5) - (2452574) - Mark S
